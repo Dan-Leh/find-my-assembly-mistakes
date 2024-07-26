@@ -2,7 +2,6 @@ import os
 import json
 import random; random.seed(0)
 import numpy as np
-import warnings
 from PIL import Image
 from torch.utils.data import Dataset
 import torch
@@ -11,6 +10,8 @@ from typing import Union, Optional
 from utils.transforms import Transforms
 
 class SyntheticChangeDataset(Dataset):
+    """ Dataset for pairing two synthetic images & generating ground truth change mask """
+    
     def __init__(
         self,
         data_path: str = "",
@@ -19,9 +20,8 @@ class SyntheticChangeDataset(Dataset):
         preprocess: bool = False,                 
         img_transforms: dict = {}
         ):
-        
         '''
-        Args:
+        Arguments:
             orientation_thresholds (tuple): the minimum & maximum nQD (norm of quaternion 
                                             differences) between two images in a pair
             parts_diff_thresholds (tuple): the minimum & maximum number of different
@@ -62,7 +62,7 @@ class SyntheticChangeDataset(Dataset):
     def _save_json(self, name: str, data: Union[list,dict]) -> None:
         ''' Save a json file with specified name in the data directory
          
-        Args:
+        Arguments:
             name (str): the name of the json file that should be saved
             data (list): the variable that is to be saved as a json file 
         '''
@@ -83,7 +83,7 @@ class SyntheticChangeDataset(Dataset):
     def _orientations_table(self, save: bool = False) -> np.ndarray: 
         ''' Make a table that contains the nQD between all poses in the dataset.
          
-        Args:
+        Arguments:
             save (bool): if True, the table is saved as a json file (part of preprocessing),
                          if False, the table is loaded from a prior saved json file
         Returns:
@@ -134,7 +134,7 @@ class SyntheticChangeDataset(Dataset):
         of images associated with those states to subsequently make pairing images 
         based on their difference in states.
         
-        Args:
+        Arguments:
             save (bool): if True, the table is saved as a json file,
                          if False, the table is loaded from a prior saved json file
         Returns:
@@ -283,7 +283,7 @@ class SyntheticChangeDataset(Dataset):
                                  state_1: int, state_2: int) -> Image.Image:
         ''' Load the binary change mask of an image pair from the dataset.
         
-        Args:
+        Arguments:
             sequence (int): the sequence index of the anchor image
             frame_1 (int): the index of the frame of the anchor image
             frame_2 (int): the index of the frame of the sample image
@@ -348,7 +348,7 @@ class SyntheticChangeDataset(Dataset):
         a sample image to pair it with, while respecting the thresholds set on 
         orientation difference and part differences.
         
-        Args:
+        Arguments:
             sequence_a (int): sequence index of the anchor image
             frame_1 (int): index of the frame of the anchor image
             state_1 (int): state of the anchor image
@@ -410,7 +410,7 @@ class SyntheticChangeDataset(Dataset):
             sample image, chosen such that there is a corresponding a2.
             We need to load the labels for a1 and a2 to make a change mask
         
-        Args:             
+        Arguments:             
             idx (int): the index of the anchor image to use
             unpairable (bool): whether the anchor image at specified index was unable to find
                 a pair. If so, a new anchor image is picked randomly until a pair is found,
