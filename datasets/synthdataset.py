@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 import torch
 from typing import Union, Optional
 
-from misc.transforms import Transforms
+from utils.transforms import Transforms
 
 class SyntheticChangeDataset(Dataset):
     def __init__(
@@ -385,7 +385,7 @@ class SyntheticChangeDataset(Dataset):
             shared_states = np.intersect1d(states_a_filtered, states_b, 
                                            assume_unique=True)
             
-            if (shared_states.size > 0):  # choose random image if potential pair found
+            if (shared_states.size > 0) and (state_1 in states_b): 
                 state_2 = random.choice(shared_states)
                 pair_found = True
                 orientation_diff = (nqd_from_a[sequence_b])
@@ -396,63 +396,72 @@ class SyntheticChangeDataset(Dataset):
         
         if not pair_found:  # randomly choose new anchor image and try again
             return None, None, None
+                
+    def __getitem__(self, idx:int, unpairable:bool=False): 
+        ''' Load image pairs
         
-    def _get_scale_difference(self, seq_a, seq_b):
-        ''' From the 3D bounding box annotations, get the ratio between the size of the car in both images'''
+        Nomenclature in code: 
+                "a" corresponds to the pose (sequence) of the first (anchor) image, 
+                "b" corresponds to the pose (sequence) of the second (sample) image.
+                "1" corresponds to the state/frame of the first (reference) image,
+                "2" corresponds to the state/frame of the second (sample) image.
+                "nqd" refers to norm of quaternion difference
+            Thus: a1 is the reference image, chosen deterministically, & b2 is the '
+            sample image, chosen such that there is a corresponding a2.
+            We need to load the labels for a1 and a2 to make a change mask
         
-        def get_scale(sequence):
-            filename = os.path.join(f"sequence{str(sequence).zfill(4)}", fr"step0000.frame_data.json")
-            json_file = self._load_json(filename)
-            for annotation in json_file["captures"][0]["annotations"]:
-                if annotation["id"] == "bounding box 3D":
-                    size_x = annotation["values"][0]["size"][0]; 
-                    return size_x
-
-        if self.relative_scale:
-            return get_scale(seq_a)/get_scale(seq_b)
-        else:
-            return 36.34/get_scale(seq_a), 36.34/get_scale(seq_b) # value chosen from sequence 0 of Train_1000x1000
+        Args:             
+            idx (int): the index of the anchor image to use
+            unpairable (bool): whether the anchor image at specified index was unable to find
+                a pair. If so, a new anchor image is picked randomly until a pair is found,
+                and the number of images that were 'unpairable' is logged.
+        Returns:
+            image_a1 (Image.Image): anchor image 
+            image_b2 (Image.Image): sample image
+            change_mask (Image.Image): ground truth binary change mask
+            nqd (float): orientation difference in "norm of quaternion difference" (nQD)
+            state_1 (int): binary state representation of anchor, used for tracking statistics
+            state_2 (int): binary state representation of sample, used for tracking statistics
+            unpairable (int): 0 if the anchor corresponding to idx was pairable, otherwise 1
+        '''
         
-    def __getitem__(self, idx, unpairable=False): # determinsitically go through dataset & pair with random image with similar orientation
-        '''Nomenclature: "A" corresponds to the pose (sequence) of the first (reference) image, 
-                        "B" corresponds to the pose (sequence) of the second (sample) image.
-                        "1" corresponds to the state/frame of the first (reference) image,
-                        "2" corresponds to the state/frame of the second (sample) image.
-                        Thus: A1 is the reference image, chosen deterministically, & B2 is the sample image, chosen such that there is a corresponding A2.
-                        We need to load the labels A1 and A2 to make a change mask'''
-        
-        # Extract sequence A and state 1ssdfg
+        # Extract sequence A and state 1 based on index
         sequence_a, frame_1 = self.data_list[idx]
         state_1 = self.state_list[idx]
         
         # Extract sequence B and state 2
-        sequence_b, state_2, orientation_diff = self.find_SequenceB_and_state2(sequence_a, frame_1, state_1)
-        if (sequence_b == state_2 == None):  # if no pair can be found for sequence_a, FrameA, take a random image and pair it
-            return self.__getitem__(idx = random.randint(0,len(self.data_list)-1), unpairable=True)
+        sequence_b, state_2, nqd = self._find_SequenceB_and_state2(sequence_a, frame_1, state_1)
+        # If no pair can be found for sequence_a, frame_1, take a random image and try again
+        if (sequence_b == state_2 == None):  
+            return self.__getitem__(idx = random.randint(0,self.__len__()-1), unpairable=True)
             
         # get the frame index corresponding to the pair of images with state 2
-        FrameB2 = self._frame_from_state(state_2, sequence_b)
-        FrameA2 = self._frame_from_state(state_2, sequence_a)     
+        frame_b2 = self._frame_from_state(state_2, sequence_b)
+        frame_a2 = self._frame_from_state(state_2, sequence_a)     
         
         # load images and change mask
-        ImageA1 = self._load_image(sequence_a, frame_1)
-        ImageB2 = self._load_image(sequence_b, FrameB2)
-        ChangeMask = self._load_binary_change_mask(sequence_a, frame_1, FrameA2, state_1, state_2)
-        
-        scale_ratio = self._get_scale_difference(sequence_a, sequence_b)
-        
+        image_a1 = self._load_image(sequence_a, frame_1)
+        image_b2 = self._load_image(sequence_b, frame_b2)
+        change_mask = self._load_binary_change_mask(sequence_a, frame_1, frame_a2, state_1, state_2)
+                
         # instantiate transforms so that the same transforms are applied to all images
-        SegMaskImage1, SegMaskImage2 = self.load_segmentation_masks(sequence_a, sequence_b, frame_1, FrameA2) # load segmentation masks to make smart random translation later
-        tf = Transforms(SegMaskImage1, SegMaskImage2, self.augmentations, scale_ratio)
+        seg_mask_img_1, seg_mask_img_2 = self._load_segmentation_masks(sequence_a, sequence_b, 
+                                                                    frame_1, frame_a2) 
+        tf = Transforms(seg_mask_img_1, seg_mask_img_2, self.img_transforms)
         
         # apply transforms
-        ImageA1 = tf(ImageA1, 'reference')
-        ImageB2 = tf(ImageB2, 'sample')
-        ChangeMask = tf(ChangeMask, 'label')
+        image_a1 = tf(image_a1, 'reference')
+        image_b2 = tf(image_b2, 'sample')
+        change_mask = tf(change_mask, 'label')
 
-        assert (ImageA1.shape == ImageB2.shape), "Reference and sample images do not have the same dimensions"
-        assert (ChangeMask.shape[-2:] == ImageA1.shape[-2:]), "Change mask and reference image do not have the same dimensions"
-        assert torch.count_nonzero(ChangeMask)+torch.count_nonzero(1-ChangeMask) == self.augmentations['img_size'][0]*self.augmentations['img_size'][1], "There are values in the ChangeMask that are neither 0 nor 1"
+        # sanity checks
+        assert (image_a1.shape == image_b2.shape), "Reference and sample images do not have \
+                                                    the same dimensions"
+        assert (change_mask.shape[-2:] == image_a1.shape[-2:]), "Change mask and reference \
+                                                    image do not have the same dimensions"
+        assert torch.count_nonzero(change_mask) + torch.count_nonzero(1-change_mask) == \
+            self.augmentations['img_size'][0]*self.augmentations['img_size'][1], \
+                "There are values in the change_mask that are neither 0 nor 1"
         
-        return ImageA1, ImageB2, ChangeMask, orientation_diff, state_1, state_2, int(unpairable) # Image A1, Image B2 and difference mask of (A1, A2)
+        return image_a1, image_b2, change_mask, nqd, state_1, state_2, int(unpairable) 
     
