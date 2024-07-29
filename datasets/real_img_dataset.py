@@ -57,7 +57,8 @@ class RealChangeDataset(Dataset):
 
         # crop according to bounding box
         if self.ROI: 
-            real_img = real_img.crop((bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]))
+            real_img = real_img.crop((bbox[0], bbox[1], bbox[0]+
+                                      bbox[2], bbox[1]+bbox[3]))
         
         # load segmentation mask of anchor, to use for ROI cropping
         segmask_path = ref_img_path.replace('.png', '.instance segmentation.png')

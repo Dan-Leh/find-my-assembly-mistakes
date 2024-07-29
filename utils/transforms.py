@@ -44,7 +44,8 @@ class Transforms(torch.nn.Module):
         self.shear_params = self._get_shear_parameters(tf_cfg['shear'])
         self.rescale_params = self._get_scale_parameters(tf_cfg['rescale'], 
                                                 segmask_anchor, segmask_sample)
-        self.crop_params = self._get_crop_parameters(tf_cfg)
+        self.crop_params = self._get_crop_parameters(tf_cfg, segmask_anchor, 
+                                                            segmask_sample)
         
         # randomly choose rotation (multiple of 90 degrees)
         self.n_rot90 = random.choice([0,1,2,3]) if tf_cfg['rotation'] else 0
@@ -58,8 +59,8 @@ class Transforms(torch.nn.Module):
             self.norm_mean = [0.485, 0.456, 0.406]
             self.norm_std = [0.229,0.224,0.225]
         else:
-            raise NotImplementedError(f'No implementation for normalizing 
-                                      according to {tf_cfg['normalization']}')
+            raise NotImplementedError(f'No implementation for normalizing' \
+                                      f'according to {tf_cfg['normalization']}')
             
         # define transforms for converting images to tensor
         self.img2tensor = v2.Compose([
@@ -103,7 +104,7 @@ class Transforms(torch.nn.Module):
             img = torch.rot90(img, self.n_rot90, dims=[-2,-1])
             img = self.transforms4label(img)
             
-        elif img_name == 'anchor' or img_name == 'sample': # transforms applied to both images
+        elif img_name == 'anchor' or img_name == 'sample': 
             img = self.img2tensor(img)
             img = self._affine_transforms(img, img_name)
             top, left, height, width = self.crop_params[img_name]
@@ -112,25 +113,25 @@ class Transforms(torch.nn.Module):
             img = self.transforms4imgs(img)
             
         else:
-            raise ValueError("Image name needs to be either 'anchor', \
-                             'sample' or 'label' ")
+            raise ValueError("Image name needs to be either 'anchor', "\
+                             "'sample' or 'label' ")
             
         return img
     
-    def _check_for_mistake_in_config(tf_cfg:dict):
-        ''' Make sanity checks to prevent transforms that cannot be used in parallel '''
+    def _check_for_mistake_in_config(self, tf_cfg:dict) -> None:
+        ''' Make sanity checks to prevent transforms that cannot coexist '''
         if tf_cfg['random_crop']:
-            assert tf_cfg['max_translation'] == 0, 'Specifying translation amount \
-                                    in addition to random cropping not supported'
-            assert tf_cfg['rescale'] == 1, 'Specifying rescale amount in addition \
-                                                    to random cropping not supported'
-            assert tf_cfg['ROI_crops'] == False, 'ROI cropping and random cropping \
-                                                    cannot be used simultaneously'
+            assert tf_cfg['max_translation'] == 0, 'Specifying translation amount '\
+                                    'in addition to random cropping not supported'
+            assert tf_cfg['rescale'] == 1, 'Specifying rescale amount in addition '\
+                                                    'to random cropping not supported'
+            assert tf_cfg['ROI_crops'] == False, 'ROI cropping and random cropping '\
+                                                    'cannot be used simultaneously'
         elif tf_cfg['ROI_crops']:
-            assert tf_cfg['max_translation'] == 0, 'Specifying translation amount \
-                                        in addition to ROI cropping not supported'
-            assert tf_cfg['rescale'] == 1, 'Specifying rescale amount in addition \
-                                                    to ROI cropping not supported'
+            assert tf_cfg['max_translation'] == 0, 'Specifying translation amount '\
+                                        'in addition to ROI cropping not supported'
+            assert tf_cfg['rescale'] == 1, 'Specifying rescale amount in addition '\
+                                                    'to ROI cropping not supported'
     
     def _get_shear_parameters(self, max_amount:int) -> dict:
         ''' Randomize shear amount for both images based on max value from config.
@@ -181,15 +182,17 @@ class Transforms(torch.nn.Module):
             desired_scale_diff = random.uniform(1, max_scale_difference)
                         
             def get_max_upscale(segmask):
-                ''' Find how much the image can be scaled up without cropping assembly object. '''
+                ''' Find how much the image can be scaled up without cropping object. '''
+                
                 segmentation = np.where(segmask == 1)
-                if len(segmentation)>0 and len(segmentation[0])>0 and len(segmentation[1])>0:
+                if len(segmentation) > 0 and len(segmentation[0]) > 0 and \
+                                                len(segmentation[1]) > 0:
                     x_min = int(np.min(segmentation[1]))
                     x_max = int(np.max(segmentation[1]))
                     y_min = int(np.min(segmentation[0]))
                     y_max = int(np.max(segmentation[0]))
                 else: 
-                    raise ValueError("there is no segmentation present in the provided image")
+                    raise ValueError("There is no segmentation present in the image")
                 center_x = segmask.shape[1]//2
                 center_y = segmask.shape[0]//2
                 dist_from_center_x = max(abs(x_min-center_x), abs(x_max-center_x))
@@ -204,7 +207,7 @@ class Transforms(torch.nn.Module):
             max_upscale_sample = get_max_upscale(seg2)
             
             rescale = {}            
-            # if either image has enough margin to be upscaled without cropping assembly object
+            # if either image has enough margin to be upscaled without cropping object
             if (max_upscale_anchor >= desired_scale_diff) and (max_upscale_sample >= 
                                                                desired_scale_diff): 
                 # randomly pick which to upscale
@@ -220,7 +223,7 @@ class Transforms(torch.nn.Module):
                                                                 desired_scale_diff): 
                 rescale['anchor'] = 1
                 rescale['sample'] = desired_scale_diff
-            # if neither image has sufficient margin, one of them needs to be scaled down
+            # if neither image has sufficient margin, scale one of them needs down
             elif (max_upscale_anchor < desired_scale_diff) and (max_upscale_sample < 
                                                                 desired_scale_diff): 
                 if random.random()>0.5:
@@ -234,7 +237,8 @@ class Transforms(torch.nn.Module):
             
         return rescale
     
-    def _apply_scale_shear_to_segmask(self, segmask:np.ndarray, img_name:str) -> np.ndarray:
+    def _apply_scale_shear_to_segmask(self, segmask:np.ndarray, img_name:str) \
+                                                                -> np.ndarray:
         ''' Transforms segmentation mask prior to finding crop params. 
         
         Arguments:
@@ -259,12 +263,12 @@ class Transforms(torch.nn.Module):
             seg1 (numpy array): segmentation mask of anchor image
             seg2 (numpy array): segmentation mask of sample image
         Returns:
-            crop_params (dict of str:float): the top, left, height, width cropping
-                                    parameters for both anchor and sample images
+            crop_params (dict of str:float): the top, left, height, width 
+                        cropping parameters for both anchor and sample images
         '''
         # apply prior transformations so that segmentation masks reflect image
-        seg1 = self._apply_scale_shear_to_segmask(seg1)
-        seg2 = self._apply_scale_shear_to_segmask(seg2)
+        seg1 = self._apply_scale_shear_to_segmask(seg1, 'anchor')
+        seg2 = self._apply_scale_shear_to_segmask(seg2, 'sample')
         
         # get crop parameters
         min_HW = min(seg1.shape) # get smallest side of image
@@ -293,7 +297,8 @@ class Transforms(torch.nn.Module):
         
         if name == 'label': # use NEAREST
             img = v2.functional.affine(img, angle=0, translate=[0,0], 
-                scale=self.rescale_params["anchor"], shear=self.shear_params["anchor"], 
+                scale=self.rescale_params["anchor"], 
+                shear=self.shear_params["anchor"], 
                 interpolation=v2.InterpolationMode.NEAREST)
         else: # use BILINEAR
             img = v2.functional.affine(img, angle=0, translate=[0,0], 
@@ -371,7 +376,8 @@ class Transforms(torch.nn.Module):
         def margins_to_crop_params(seg_margins:list, sideways_direction:str, 
                                    up_down_direction:str, img_name:str) -> tuple:
             if img_name == 'sample':
-                invert_directions = {'up':'down', 'down':'up', 'left':'right', 'right':'left'}
+                invert_directions = {'up':'down', 'down':'up', 
+                                     'left':'right', 'right':'left'}
                 sideways_direction = invert_directions[sideways_direction]
                 up_down_direction = invert_directions[up_down_direction]
                                 
@@ -420,25 +426,29 @@ class Transforms(torch.nn.Module):
             if sideways_direction == 'left':
                 min_anchor_sideways = max(0, sideways_translation - seg2_margins[1])
                 max_anchor_sideways = min(sideways_translation, seg1_margins[0])
-                anchor_sideways = random.randint(min_anchor_sideways, max_anchor_sideways)
+                anchor_sideways = random.randint(min_anchor_sideways, 
+                                                 max_anchor_sideways)
                 anchor_left = centercrop_left+anchor_sideways
                 sample_left = centercrop_left - (sideways_translation-anchor_sideways)
             elif sideways_direction == 'right':
                 min_anchor_sideways = max(0, sideways_translation - seg2_margins[0])
                 max_anchor_sideways = min(sideways_translation, seg1_margins[1])
-                anchor_sideways = random.randint(min_anchor_sideways, max_anchor_sideways)
+                anchor_sideways = random.randint(min_anchor_sideways, 
+                                                 max_anchor_sideways)
                 anchor_left = centercrop_left-anchor_sideways
                 sample_left = centercrop_left + (sideways_translation-anchor_sideways)
             if up_down_direction == 'up':
                 min_anchor_up_down = max(0, up_down_translation - seg2_margins[3])
                 max_anchor_up_down = min(up_down_translation, seg1_margins[2])
-                anchor_up_down = random.randint(min_anchor_up_down, max_anchor_up_down)
+                anchor_up_down = random.randint(min_anchor_up_down, 
+                                                max_anchor_up_down)
                 anchor_top = centercrop_top+anchor_up_down
                 sample_top = centercrop_top - (up_down_translation-anchor_up_down)
             elif up_down_direction == 'down':
                 min_anchor_up_down = max(0, up_down_translation - seg2_margins[2])
                 max_anchor_up_down = min(up_down_translation, seg1_margins[3])
-                anchor_up_down = random.randint(min_anchor_up_down, max_anchor_up_down)
+                anchor_up_down = random.randint(min_anchor_up_down, 
+                                                max_anchor_up_down)
                 anchor_top = centercrop_top-anchor_up_down
                 sample_top = centercrop_top + (up_down_translation-anchor_up_down)
             
@@ -491,10 +501,11 @@ class Transforms(torch.nn.Module):
             width = bbox[1] + add_right - left
         
         # get the vertical crop parameters
-        if y_margin >= allowed_margins[2] + allowed_margins[3]: # if there is insufficient margin
-            top = 0; height = H # do not crop
+        if y_margin >= allowed_margins[2] + allowed_margins[3]:  # insufficient margin
+            top = 0; height = H  # do not crop
         else:  # there is enough room to create margins on one of the sides
-            add_top = random.randint(max(0, y_margin-allowed_margins[3]), min(allowed_margins[2], y_margin)) 
+            add_top = random.randint(max(0, y_margin-allowed_margins[3]), 
+                                     min(allowed_margins[2], y_margin)) 
             if center_roi:  # place bbox in center of crop for aligned image pairs
                 add_top = y_margin//2 
             add_bottom = y_margin - add_top

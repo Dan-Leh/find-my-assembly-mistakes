@@ -119,8 +119,8 @@ class SyntheticChangeDataset(Dataset):
                           
         else: # load the orientation table from a json file
             assert os.path.exists(os.path.join(self.path_to_data, 'orientation_table.json')), \
-            'The file "orientation_table.json" does not exist. Make sure to run preprocess.py \
-            when using a new dataset.'
+            'The file "orientation_table.json" does not exist. Make sure to run preprocess.py '\
+            'when using a new dataset.'
             nqd_table = np.array(self._load_json('orientation_table.json'))
                 
         return nqd_table
@@ -172,17 +172,17 @@ class SyntheticChangeDataset(Dataset):
                 seq_frame_pairs = np.array(state_dict[key])
                 unique_sequences = np.unique(seq_frame_pairs[:,0])
                 n_duplicates += len(state_dict[key]) - len(unique_sequences) 
-            print(f"Total number of states: {len(state_dict.keys())}. Number of 
-                  duplicates (where multiple identical states are in the same sequence): 
-                  {n_duplicates}")
+            print(f"Total number of states: {len(state_dict.keys())}. Number of "\
+                  f"duplicates (where multiple identical states are in the same sequence): "\
+                  f"{n_duplicates}")
                     
             self._save_json('state_table.json', state_dict)
             self._save_json('state_list.json', state_list)
                             
         else: # load the state table from a json file
             assert os.path.exists(os.path.join(self.path_to_data, 'state_table.json')), \
-            'The file "state_table.json" does not exist. Make sure to run preprocess.py \
-            when using a new dataset.'
+            'The file "state_table.json" does not exist. Make sure to run preprocess.py '\
+            'when using a new dataset.'
             state_dict = self._load_json('state_table.json')
             state_dict = {int(k): v for k, v in state_dict.items()} # str to int for state
             state_list = self._load_json('state_list.json')
@@ -403,10 +403,10 @@ class SyntheticChangeDataset(Dataset):
         Nomenclature in code: 
                 "a" corresponds to the pose (sequence) of the first (anchor) image, 
                 "b" corresponds to the pose (sequence) of the second (sample) image.
-                "1" corresponds to the state/frame of the first (reference) image,
+                "1" corresponds to the state/frame of the first (anchor) image,
                 "2" corresponds to the state/frame of the second (sample) image.
                 "nqd" refers to norm of quaternion difference
-            Thus: a1 is the reference image, chosen deterministically, & b2 is the '
+            Thus: a1 is the anchor image, chosen deterministically, & b2 is the '
             sample image, chosen such that there is a corresponding a2.
             We need to load the labels for a1 and a2 to make a change mask
         
@@ -442,25 +442,26 @@ class SyntheticChangeDataset(Dataset):
         # load images and change mask
         image_a1 = self._load_image(sequence_a, frame_1)
         image_b2 = self._load_image(sequence_b, frame_b2)
-        change_mask = self._load_binary_change_mask(sequence_a, frame_1, frame_a2, state_1, state_2)
+        change_mask = self._load_binary_change_mask(sequence_a, frame_1, frame_a2, 
+                                                                state_1, state_2)
                 
         # instantiate transforms so that the same transforms are applied to all images
-        seg_mask_img_1, seg_mask_img_2 = self._load_segmentation_masks(sequence_a, sequence_b, 
-                                                                    frame_1, frame_a2) 
+        seg_mask_img_1, seg_mask_img_2 = self._load_segmentation_masks(sequence_a, 
+                                                            sequence_b, frame_1, frame_a2) 
         tf = Transforms(seg_mask_img_1, seg_mask_img_2, self.img_transforms)
         
         # apply transforms
-        image_a1 = tf(image_a1, 'reference')
+        image_a1 = tf(image_a1, 'anchor')
         image_b2 = tf(image_b2, 'sample')
         change_mask = tf(change_mask, 'label')
 
         # sanity checks
-        assert (image_a1.shape == image_b2.shape), "Reference and sample images do not have \
-                                                    the same dimensions"
-        assert (change_mask.shape[-2:] == image_a1.shape[-2:]), "Change mask and reference \
-                                                    image do not have the same dimensions"
+        assert (image_a1.shape == image_b2.shape), "Anchor and sample images do not have "\
+                                                    "the same dimensions"
+        assert (change_mask.shape[-2:] == image_a1.shape[-2:]), "Change mask and anchor "\
+                                                    "image do not have the same dimensions"
         assert torch.count_nonzero(change_mask) + torch.count_nonzero(1-change_mask) == \
-            self.augmentations['img_size'][0]*self.augmentations['img_size'][1], \
+            self.img_transforms['img_size'][0]*self.img_transforms['img_size'][1], \
                 "There are values in the change_mask that are neither 0 nor 1"
         
         return image_a1, image_b2, change_mask, nqd, state_1, state_2, int(unpairable) 
