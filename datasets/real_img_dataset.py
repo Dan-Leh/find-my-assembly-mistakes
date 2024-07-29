@@ -9,14 +9,18 @@ from utils.eval_transforms import EvalTransforms
 
 class RealChangeDataset(Dataset):
     """ Dataset for pairing a synthetic anchor with a real sample image """
-    def __init__(self, data_path:str = "", ROI: bool = False):
+    def __init__(self, data_path:str = "", ROI: bool = False, img_tf: dict = {}):
         ''' 
         Args:
             data_path (str): path to the folder containing the dataset
             ROI (bool): whether to create region-of-interest crops
+            img_tf (dict): dictionary containing values for the following 
+                image transforms, i.e. keys of the dict: 'img_size', 
+                'normalization' and 'ROI_crops'
         '''
         self.path_to_data = data_path
         self.ROI = ROI
+        self.img_tf = img_tf
         
         # construct a list of image information
         self.pairs_info = []
@@ -24,9 +28,9 @@ class RealChangeDataset(Dataset):
             labels = self._load_json(os.path.join(category, "labels.json"))
             for img in labels:
                 self.pairs_info.append({
-                    'sample': os.path.join(data_path, category, img), # path to real sample image
-                    'reference': os.path.join('/shared/nl011006/res_ds_ml_restricted/dlehman', 
-                                              labels[img]['anchor']), # reference image path
+                    'sample': os.path.join(data_path, category, img),  # real img
+                    'anchor': os.path.join('/shared/nl011006/res_ds_ml_restricted'\
+                        '/dlehman', labels[img]['reference']),  # synthetic anchor
                     'bbox': labels[img]['bbox'],
                     'category': labels[img]['category']
                 })              
@@ -48,11 +52,11 @@ class RealChangeDataset(Dataset):
         
         # get information about image pairs
         img_info = self.pairs_info[idx]
-        ref_img_path = img_info['reference']
+        anchor_img_path = img_info['anchor']
         real_img_path = img_info['sample']
         bbox = img_info['bbox']
 
-        ref_img = Image.open(ref_img_path).convert("RGB")
+        anchor_img = Image.open(anchor_img_path).convert("RGB")
         real_img = Image.open(real_img_path).convert("RGB")
 
         # crop according to bounding box
@@ -61,33 +65,24 @@ class RealChangeDataset(Dataset):
                                       bbox[2], bbox[1]+bbox[3]))
         
         # load segmentation mask of anchor, to use for ROI cropping
-        segmask_path = ref_img_path.replace('.png', '.instance segmentation.png')
+        segmask_path = anchor_img_path.replace('.png', '.instance segmentation.png')
         segmask = np.array(Image.open(segmask_path).convert('L'))  # grayscale
         segmask = (segmask > 0).astype(np.uint8)
         
-        # TODO: requires fixing
-        tf = EvalTransforms(segmask_ref=segmask, segmask_sample=segmask, real_sample=True,
-                        aug_cfg = {'rotation': False, # randomly rotates 0, 90, 180 or 270 degrees
-                                    'img_size': (256,256),
+        tf = EvalTransforms(segmask_anchor=segmask, 
+                                segmask_sample=segmask, real_sample=True,
+                                aug_cfg = {
+                                    'img_size': self.img_tf["img_size"],
                                     'random_crop': False, 
-                                    'hflip_probability': 0,
-                                    'vflip_probability': 0,
-                                    'brightness': 0,
-                                    'contrast': 0,
-                                    'saturation': 0,
-                                    'hue': 0,
-                                    'normalization': 'imagenet', # add 'industsynth' later
+                                    'normalization': self.img_rf['normalization'],
                                     'max_translation': 0,
                                     'rescale': 1,
-                                    'g_kernel_size': 1,
-                                    'g_sigma_l': 1,
-                                    'g_sigma_h': 1,
                                     'ROI_crops': self.ROI,
-                                    'center_roi': True,
-                                    'shear': 0},
-                         )
+                                    'center_roi': True    
+                                }
+                            )
         
-        ref_img = tf(ref_img, 'reference')
+        anchor_img = tf(anchor_img, 'anchor')
         real_img = tf(real_img, 'sample')
             
-        return ref_img, real_img, img_info['category']
+        return anchor_img, real_img, img_info['category']

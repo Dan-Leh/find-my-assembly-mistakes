@@ -148,7 +148,7 @@ class Transforms(torch.nn.Module):
             sheary_anchor = random.randint(0, max_amount-shearx_anchor)
             self.segmask_anchor = torch.from_numpy(self.segmask_anchor)
             self.segmask_anchor = torch.unsqueeze(self.segmask_anchor, dim=0)
-            shear_params['anchor'] = (shearx_anchor, sheary_anchor)
+            shear_params = {'anchor': (shearx_anchor, sheary_anchor)}
 
             # get shear values and apply to segmentation mask of sample
             shearx_sample = random.randint(0, max_amount)
