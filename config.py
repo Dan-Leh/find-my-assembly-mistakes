@@ -115,7 +115,9 @@ def make_train_dirs(config_dict:dict) -> dict:
     # visualization directory
     config_dict['vis_dir'] = os.path.join(config_dict['output_dir'], 'visualize')
     os.mkdir(config_dict['vis_dir'])
-    
+    os.mkdir(os.path.join(config_dict['vis_dir'], 'train'))
+    os.mkdir(os.path.join(config_dict['vis_dir'], 'val'))
+
     return config_dict
     
 def make_test_dirs(config_dict): # add test arguments and make test dir
