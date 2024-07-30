@@ -1,6 +1,5 @@
 import numpy as np
 
-
 ###################       metrics      ###################
 class AverageMeter(object):
     """ Compute and store the average and current values. """
@@ -41,7 +40,7 @@ class AverageMeter(object):
         scores_dict = cm2score(self.sum)
         return scores_dict
 
-    def clear(self):
+    def reset(self):
         self.initialized = False
 
 
@@ -53,114 +52,84 @@ class ConfuseMatrixMeter(AverageMeter):
         super(ConfuseMatrixMeter, self).__init__()
         self.n_class = n_class
 
-    def update_cm(self, pr, gt, weight=1):
-        """获得当前混淆矩阵，并计算当前F1得分，并更新混淆矩阵"""
-        val = get_confuse_matrix(num_classes=self.n_class, label_gts=gt, label_preds=pr) # makes a fresh confuse matrix
-        self.update(val, weight) # updates values of the running confuse matrix
-        current_score = cm2F1(val) # computes f1 from confusion matrix
-        return current_score
+    def update_cm(self, pr, gt):
+        """"""
+        confuse_matrix = get_confuse_matrix(num_classes=self.n_class, 
+                                            label_gts=gt, label_preds=pr) 
+        self.update(confuse_matrix, weight=1) # updates values of the running cm
+        current_scores = cm2score(confuse_matrix) 
+        return current_scores['iou_1']
 
     def get_scores(self):
         scores_dict = cm2score(self.sum)
         return scores_dict
 
 
-
-def harmonic_mean(xs):
-    harmonic_mean = len(xs) / sum((x+1e-6)**-1 for x in xs)
-    return harmonic_mean
-
-
-def cm2F1(confusion_matrix):
-    hist = confusion_matrix
-    n_class = hist.shape[0]
-    tp = np.diag(hist)
-    sum_a1 = hist.sum(axis=1)
-    sum_a0 = hist.sum(axis=0)
-    # ---------------------------------------------------------------------- #
-    # 1. Accuracy & Class Accuracy
-    # ---------------------------------------------------------------------- #
-    acc = tp.sum() / (hist.sum() + np.finfo(np.float32).eps)
-
-    # recall
-    recall = tp / (sum_a1 + np.finfo(np.float32).eps)
-    # acc_cls = np.nanmean(recall)
-
-    # precision
-    precision = tp / (sum_a0 + np.finfo(np.float32).eps)
-
-    # F1 score
-    F1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
-    mean_F1 = np.nanmean(F1)
-    return mean_F1
-
-
 def cm2score(confusion_matrix):
+    ''' Compute all scores of interest from confusion matrix. 
+    
+    Returns:
+        score_dict (dict):  - miou: mean intersection over union
+                            - iou_0: iou for 'no change' class
+                            - iou_1: iou for 'change' class
+                            - mf1: mean F1 scores
+                            - f1_0: F1 score for 'no change' class
+                            - f1_1: F1 score for 'change' class
+                            - accuracy
+                            - precision
+                            - recall   
+    '''
     hist = confusion_matrix
     n_class = hist.shape[0]
-    tp = np.diag(hist)
-    sum_a1 = hist.sum(axis=1)
-    sum_a0 = hist.sum(axis=0)
+    true_pred = np.diag(hist)       # TP & TN
+    actual_pos = hist.sum(axis=1)   # TP + FN
+    pred_pos = hist.sum(axis=0)     # TP + FP
     # ---------------------------------------------------------------------- #
-    # 1. Accuracy & Class Accuracy
+    # 1. Accuracy & f1
     # ---------------------------------------------------------------------- #
-    acc = tp.sum() / (hist.sum() + np.finfo(np.float32).eps)
+    accuracy = true_pred.sum() / (hist.sum() + np.finfo(np.float32).eps)
+    recall = true_pred / (actual_pos + np.finfo(np.float32).eps)
+    precision = true_pred / (pred_pos + np.finfo(np.float32).eps)
 
-    # recall
-    recall = tp / (sum_a1 + np.finfo(np.float32).eps)
-    # acc_cls = np.nanmean(recall)
-
-    # precision
-    precision = tp / (sum_a0 + np.finfo(np.float32).eps)
-
-    # F1 score
-    F1 = 2*recall * precision / (recall + precision + np.finfo(np.float32).eps)
-    mean_F1 = np.nanmean(F1)
+    f1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
+    mean_f1 = np.nanmean(f1)
     # ---------------------------------------------------------------------- #
-    # 2. Frequency weighted Accuracy & Mean IoU
+    # 2. IoU
     # ---------------------------------------------------------------------- #
-    iu = tp / (sum_a1 + hist.sum(axis=0) - tp + np.finfo(np.float32).eps)
-    mean_iu = np.nanmean(iu)
+    iou = true_pred / (actual_pos + pred_pos - 
+                       true_pred + np.finfo(np.float32).eps)
+    mean_iu = np.nanmean(iou)
 
-    freq = sum_a1 / (hist.sum() + np.finfo(np.float32).eps)
-    fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
+    ious = dict(zip(['iou_'+str(i) for i in range(n_class)], iou))
+    precisions = dict(zip(['precision_'+str(i) for i in range(n_class)], precision))
+    recalls = dict(zip(['recall_'+str(i) for i in range(n_class)], recall))
+    f1s = dict(zip(['f1_'+str(i) for i in range(n_class)], f1))
 
-    #
-    cls_iou = dict(zip(['iou_'+str(i) for i in range(n_class)], iu))
-
-    cls_precision = dict(zip(['precision_'+str(i) for i in range(n_class)], precision))
-    cls_recall = dict(zip(['recall_'+str(i) for i in range(n_class)], recall))
-    cls_F1 = dict(zip(['F1_'+str(i) for i in range(n_class)], F1))
-
-    score_dict = {'acc': acc, 'miou': mean_iu, 'mf1':mean_F1}
-    score_dict.update(cls_iou)
-    score_dict.update(cls_F1)
-    score_dict.update(cls_precision)
-    score_dict.update(cls_recall)
+    score_dict = {'accuracy': accuracy, 'miou': mean_iu, 'mf1':mean_f1}
+    score_dict.update(ious)
+    score_dict.update(f1s)
+    score_dict.update(precisions)
+    score_dict.update(recalls)
+    
     return score_dict
 
 
 def get_confuse_matrix(num_classes, label_gts, label_preds):
-    """计算一组预测的混淆矩阵"""
+    """"""
     def __fast_hist(label_gt, label_pred):
-        """
-        Collect values for Confusion Matrix
+        """ Collect values for Confusion Matrix.
+        
         For reference, please see: https://en.wikipedia.org/wiki/Confusion_matrix
         :param label_gt: <np.array> ground-truth
         :param label_pred: <np.array> prediction
         :return: <np.ndarray> values for confusion matrix
         """
         mask = (label_gt >= 0) & (label_gt < num_classes)
-        hist = np.bincount(num_classes * label_gt[mask].astype(int) + label_pred[mask],
-                           minlength=num_classes**2).reshape(num_classes, num_classes)
+        hist = np.bincount(num_classes * label_gt[mask].astype(int) + 
+                           label_pred[mask], minlength=num_classes**2).reshape(
+                                                        num_classes, num_classes)
         return hist
     confusion_matrix = np.zeros((num_classes, num_classes))
     for lt, lp in zip(label_gts, label_preds):
         confusion_matrix += __fast_hist(lt.flatten(), lp.flatten())
     return confusion_matrix
-
-
-def get_mIoU(num_classes, label_gts, label_preds):
-    confusion_matrix = get_confuse_matrix(num_classes, label_gts, label_preds)
-    score_dict = cm2score(confusion_matrix)
-    return score_dict['miou']

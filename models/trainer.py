@@ -7,11 +7,11 @@ import torch
 from torchvision.transforms import v2
 
 from utils.metric_tool import ConfuseMatrixMeter
-from utils.losses import cross_entropy, focal_loss
-from misc.utils import make_numpy_grid, Loss_tracker
-from misc.logger_tool import Logger, Timer
+from utils.loss_funcs import get_loss_func
+from utils.plotter import make_numpy_grid, LossPlotter
+from utils.logger_tool import Logger, Timer
 from utils.transforms import denormalize
-from utils.data_stats import Stat_tracker
+from utils.data_stats import StatTracker
 from models.tmp_functions import get_optimizer, get_scheduler, build_model,\
                                 get_loss_func
 
@@ -28,9 +28,9 @@ class CDTrainer():
         self.lr_scheduler = get_scheduler(self.optimizer, args)
         self.loss_func = get_loss_func(args.loss)
         self.running_metric = ConfuseMatrixMeter(n_class=2)
-        self.loss_tracker = Loss_tracker(args.output_dir,args.resume_results_dir)
+        self.loss_plotter = LossPlotter(args.output_dir, args.resume_results_dir)
         # gives insight on the number of unique pairs, etc...
-        self.stat_tracker = Stat_tracker(args.output_dir, "train", 
+        self.stat_tracker = StatTracker(args.output_dir, "train", 
                                          args.batch_size)
 
         self._initialize_variables(self, args)
@@ -112,7 +112,6 @@ class CDTrainer():
     def _timer_update(self) -> None:
                 
         self.global_step[self.split] += 1
-
         self.timer.update_progress((self.global_step['train'] + 1) 
                                    / self.total_steps)
         est = self.timer.estimated_remaining()
@@ -167,14 +166,15 @@ class CDTrainer():
 
         net_pred = torch.argmax(net_pred, dim=1).cpu().numpy()
 
-        current_score = self.running_metric.update_cm(pr=net_pred, gt=target) 
-        return current_score
+        current_iou = self.running_metric.update_cm(net_pred, target) 
+        return current_iou
 
     def _collect_running_batch_states(self) -> None:
         ''' Update states/scores and log text & images depending on epoch. '''
         
         running_iou = self._update_metric()
         imps, est = self._timer_update()
+        if self.split == 'train': self.stat_tracker.update_stats(self.batch[3:])
         
         # Log text at right interval
         if np.mod(self.global_step[self.split], self.log_iter) == 0: 
@@ -182,7 +182,7 @@ class CDTrainer():
                 f'- Epoch {self.epoch_id}/{self.max_num_epochs},\t Batch '
                 f'{self.batch_id}/{self.steps_per_epoch},\t img/s: {imps * \
                 self.batch_size:.2f},\t est: {est:.2f}h,\t loss: '
-                f'{self.loss.item():.5f},\t running_mf1: {running_iou:.5f}\n')
+                f'{self.loss.item():.5f},\t running_iou: {running_iou:.5f}\n')
             self.logger.write(message)
         
         # save images at right interval
@@ -207,16 +207,20 @@ class CDTrainer():
         ''' Save running scores at the end of each epoch '''
         
         scores = self.running_metric.get_scores()
+        self.loss_plotter.plot_losses(self.split)  # update loss curve
+        self.stat_tracker.save_stats()
+        
         # take average of loss
         if self.split == 'train': 
             epoch_loss = self.running_loss / self.steps_per_epoch  
         else: epoch_loss = self.running_loss / self.val_steps_per_epoch
         
-        self.loss_tracker.update_score_log(self.split, scores, epoch_loss, 
+        self.loss_plotter.update_score_log(self.split, scores, epoch_loss, 
                             self.epoch_id, self.lr_scheduler.get_last_lr()[0])
         self.epoch_iou = scores['iou_1']
         self.logger.write(f'{self.split}: Epoch {self.epoch_id} / '
                 f'{self.max_num_epochs-1}, epoch_IoU= {self.epoch_iou:.4f}\n')
+
         message = ''
         for k, v in scores.items():
             message += f'{k}: {v:.3e}  '
@@ -240,8 +244,8 @@ class CDTrainer():
             self.logger.write('*' * 10 + 'Best model updated!\n')
             self.logger.write('\n')
 
-    def _clear_cache(self):
-        self.running_metric.clear()
+    def _reset_running_scores(self):
+        self.running_metric.reset()
         self.running_loss = 0
 
     def _forward_pass(self, batch):
@@ -273,7 +277,7 @@ class CDTrainer():
 
             ################## train #################
             ##########################################
-            self._clear_cache()
+            self._reset_running_scores()
             self.split = 'train'
             self.net.train()  # Set model to training mode
             # Iterate over data
@@ -281,31 +285,26 @@ class CDTrainer():
             self.logger.write(f'lr: {self.lr_scheduler.get_last_lr()[0]}\n')
             
             for self.batch_id in range(0, self.steps_per_epoch):
-                try:
+                try:  # endlessly cycle through dataloader
                     batch = next(train_data_iter) 
-                except StopIteration: # StopIteration is thrown if dataset ends
-                    # reinitialize data loader 
-                    self.stat_tracker.end_of_dataloader()
+                except StopIteration:  # StopIteration is thrown if dataset ends
+                    self.stat_tracker.end_of_dataloader()  # reinitialize dataloader
                     train_data_iter = iter(self.dataloaders['train'])
                     batch = next(train_data_iter) 
 
                 self._forward_pass(batch)
-                # update net
                 self.optimizer.zero_grad()
                 self._backward_pass()
                 self.optimizer.step()
                 self._collect_running_batch_states()
-                self.stat_tracker.update_stats(self.batch[3:])
             
             self._collect_epoch_states()
-            self.loss_tracker.save_losses('train')  # update loss curve
             self.lr_scheduler.step()
-            self.stat_tracker.save_stats()
-                
+
             ################## Eval ##################
             ##########################################
             self.logger.write('Begin evaluation...\n')
-            self._clear_cache()
+            self._reset_running_scores()
             self.split = 'val'
             self.net.eval()
 
@@ -315,12 +314,11 @@ class CDTrainer():
                     self._forward_pass(batch)
                     self._get_loss()
                 self._collect_running_batch_states()
-                if self.batch_id > self.val_steps_per_epoch:
-                    break
+                if self.batch_id > self.val_steps_per_epoch: 
+                    break  # to avoid looping for too long
             self._collect_epoch_states()
             
             ########### Update_Checkpoints ###########
             ##########################################
-            self.loss_tracker.save_losses('val')  # update loss curve
             if self.save_ckpt:
                 self._update_checkpoints()

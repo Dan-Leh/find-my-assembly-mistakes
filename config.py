@@ -120,7 +120,9 @@ def make_train_dirs(config_dict:dict) -> dict:
 
     return config_dict
     
-def make_test_dirs(config_dict): # add test arguments and make test dir
+def make_test_dirs(config_dict: dict): 
+    ''' Add arguments for testing and build directories '''
+    
     config_dict['output_dir'] = os.path.join(config_dict['output_root'], 
                                 config_dict['experiment_name'], f"Test")
     # add number to output dir if it already exists
@@ -142,7 +144,8 @@ def make_test_dirs(config_dict): # add test arguments and make test dir
 
     return config_dict
 
-def get_overwrite_arguments(parser, train:bool): # do not give the arguments default values or they will overwrite the config file parameters
+def get_overwrite_arguments(parser, train:bool): 
+
     if train:
         parser.add_argument('--train_dir', type=str, help="The directory containing all the training data")
         parser.add_argument('--val_dir', type=str, help="The directory containing all the validation data")
