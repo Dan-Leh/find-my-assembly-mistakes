@@ -462,12 +462,14 @@ class Transforms(torch.nn.Module):
     def _roi_crop_parameter(self, segmask: np.ndarray, center_roi: bool) -> list:
         ''' Get parameters for region of interest (ROI) cropping.
         
-        Function that takes the bounding box of the object, and adds 10% 
-        margins on both sides to create some small random cropping when possible 
-        (i.e. without ever relying on 0 padding)
+        Function that takes the bounding box of the object, and adds 10% margins 
+        on to height and width and randomly moves object within those bounds to
+        create some small random cropping when possible (i.e. without 0 padding).
         
         Arguments:
             segmask (numpy array): segmentation mask of anchor or sample images
+            center_roi (bool): whether to randomly position object within crop 
+                               (if False) or have it always be centered (if True)
         Returns: 
             crop_params (list): [top, left, height, width] '''
                 

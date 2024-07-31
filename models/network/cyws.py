@@ -8,7 +8,6 @@ from models.network.loftr_files.multi_headed_attn import MSA
 class CYWS(nn.Module):
     def __init__(self, cyws_params, classes):
         super().__init__()
-        self.self_attn=False
         n_coam, coam_input_channels, coam_hidden_channels = \
                                                 cyws_params['coam_layer_data']
         
@@ -27,9 +26,11 @@ class CYWS(nn.Module):
                     classes = classes
                 )
         
-        if cyws_params['n_MSA_layers']>0 and (cyws_params['self_attention'] in
-                                                            ['linear','full']):
-            self.self_attn=True
+        if cyws_params['attention'] == 'msa':
+            assert cyws_params['n_SA_heads'] > 0 and cyws_params['n_MSA_layers']>0 \
+                and cyws_params['self_attention'] in ['linear', 'full'], \
+                "Mistake in configuration of multi-headed self-attention."
+            self.add_msa = True
             self.msa_modules = nn.ModuleList(
                 [
                     MSA(n_layers=cyws_params['n_MSA_layers'], 
@@ -39,14 +40,17 @@ class CYWS(nn.Module):
                     for i in range(n_coam)
                 ]
             )
-            
+        else: self.add_msa = False
+        
+        attn_type = cyws_params['attention'] 
+        if self.add_msa: attn_type = 'gca'
         self.coattention_modules = nn.ModuleList(
             [
                 CrossAttentionModule(
                     input_channels=coam_input_channels[i],
                     hidden_channels=coam_hidden_channels[i],
-                    attention_type=cyws_params['attention'],
-                    kernel_size=kernel_sizes[i]
+                    attention_type=attn_type,
+                    kernel_size=cyws_params['kernel_sizes']
                     )
                 for i in range(n_coam)
             ]
@@ -57,23 +61,17 @@ class CYWS(nn.Module):
         # pass images through encoder
         reference_latent = self.unet_model.encoder(reference)
         sample_latent = self.unet_model.encoder(sample)
-        fs1 = reference_latent.copy() # for future concatenation if self.concat_fs1_to_self_attention is True
         
         # get crossattention block, apply self-attention if in settings
         for i in range(len(self.coattention_modules)):
-            if self.self_attn:
+            if self.add_msa:
                 reference_latent[-(i + 1)] = self.msa_modules[i](reference_latent[-(i + 1)])
                 sample_latent[-(i + 1)] = self.msa_modules[i](sample_latent[-(i + 1)])
                 
             reference_latent[-(i + 1)] = self.coattention_modules[i](reference_latent[-(i + 1)], 
                                                                         sample_latent[-(i + 1)],
                                                                         vis_CA, # whether to save cross-attention maps for visualization 
-                                                                        self.SA_in_CA,
-                                                                        self.same_WqWk) 
-            if self.concat_fs1_to_self_attention:
-                if self.self_attn: # only actually do the concatenation if using self-attention
-                    reference_latent[-(i + 1)] = torch.cat((fs1[-(i + 1)], reference_latent[-(i + 1)]), dim=1)
-                reference_latent[-(i + 1)] = self.conv2preserve_cdims[i](reference_latent[-(i + 1)]) # add this conv layer regardless of use of self-attention to keep results comparable
+                                                                        ) 
 
         decoded_features = self.unet_model.decoder(*reference_latent)
         

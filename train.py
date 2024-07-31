@@ -1,4 +1,4 @@
-import torch; torch.manual_seed(0)
+import torch
 from torch.utils.data import DataLoader
 
 from datasets.synthdataset import SyntheticChangeDataset
@@ -10,7 +10,8 @@ cfg = read_config(train=True) # get all variables from config file
 
 def remove_train_augmentations(tf_cfg: dict) -> dict:
     ''' Remove train-only augmentations from validation set. '''
-    val_transforms = tf_cfg.copy() 
+    
+    val_transforms = tf_cfg.copy()
     for aug in ['hflip_probability', 'vflip_probability', 'brightness', 
                 'contrast', 'saturation', 'hue', 'shear']:
         val_transforms[aug] = 0

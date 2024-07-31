@@ -1,6 +1,6 @@
 import os
 import json
-import random; random.seed(0)
+import random
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
@@ -22,11 +22,11 @@ class SyntheticChangeDataset(Dataset):
         ):
         '''
         Arguments:
+            data_path (string): path to the folder containing the dataset
             orientation_thresholds (tuple): the minimum & maximum nQD (norm of quaternion 
                                             differences) between two images in a pair
             parts_diff_thresholds (tuple): the minimum & maximum number of different
                                            parts between two images in a pair
-            data_path (string): path to the folder containing the dataset
             preprocess (bool): if True, run preprocessing functions, i.e. save list 
                                 of all states and orientation differences in dataset
             img_transforms (dict): a dictionary containing all the image 
@@ -222,7 +222,8 @@ class SyntheticChangeDataset(Dataset):
         part of the assembly object in that binary sequence is given by the 
         "PartList.json" file. This function makes a dictionary that contains the 
         part index corresponding to each part ID contained in the instance segmentation
-        annotation of each image in the dataset.
+        annotation of each image in the dataset. It is needed for generating ground
+        truth masks by comparing what parts are present in anchor and sample images.
         '''
 
         id2index = {}
@@ -249,6 +250,7 @@ class SyntheticChangeDataset(Dataset):
                                  f"sequence{str(sequence).zfill(4)}", 
                                  f"step{str(frame).zfill(4)}.camera.png")
         image = Image.open(file_path).convert("RGB")
+        
         return image
     
     def _load_segmentation_masks(self, seq_a: int, seq_b: int, frame_1: int, 
@@ -424,7 +426,6 @@ class SyntheticChangeDataset(Dataset):
             state_2 (int): binary state representation of sample, used for tracking statistics
             unpairable (int): 0 if the anchor corresponding to idx was pairable, otherwise 1
         '''
-        
         # Extract sequence A and state 1 based on index
         sequence_a, frame_1 = self.data_list[idx]
         state_1 = self.state_list[idx]

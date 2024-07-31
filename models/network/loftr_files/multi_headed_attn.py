@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
-from loftr_files.linear_attention import FullAttention, LinearAttention
-from loftr_files.position_encoding import PositionEncodingSine
+from .linear_attention import FullAttention, LinearAttention
+from .position_encoding import PositionEncodingSine
 
 class MSA(nn.Module):
     def __init__(self,

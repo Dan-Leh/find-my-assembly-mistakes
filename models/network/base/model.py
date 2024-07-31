@@ -1,5 +1,5 @@
 import torch
-from cyws_files.base import initialization as init
+from models.network.base import initialization as init
 
 
 class SegmentationModel(torch.nn.Module):

@@ -1,6 +1,6 @@
 T_0: 300
 T_mult: 2
-batch_size: 5
+batch_size: 64
 checkpoint_root: /hpc/scratch/dlehman/CD_checkpoints
 cyws:
   attention: gca
@@ -22,7 +22,7 @@ cyws:
   n_SA_heads: 8
   pretrained_encoder: true
   self_attention: None
-experiment_name: train_config(2)
+experiment_name: train_config
 gpu: true
 img_transforms:
   ROI_crops: true
@@ -56,7 +56,7 @@ optimizer: adam
 orientation_thresholds:
 - 0.0
 - 0.1
-output_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/train_config(2)
+output_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/train_config
 output_root: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results
 parts_diff_thresholds:
 - 1
@@ -67,5 +67,5 @@ save_ckpt: false
 save_fig_iter: 1
 train_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Train_states_v2
 val_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Val_states_v2
-vis_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/train_config(2)/visualize
+vis_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/train_config/visualize
 warmup_epochs: 15

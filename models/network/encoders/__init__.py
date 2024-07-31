@@ -1,12 +1,12 @@
 import functools
 import torch.utils.model_zoo as model_zoo
 
-from cyws_files.encoders.resnet import resnet_encoders
+from .resnet import resnet_encoders
 
 
-from cyws_files.encoders.timm_universal import TimmUniversalEncoder
+from .timm_universal import TimmUniversalEncoder
 
-from cyws_files.encoders._preprocessing import preprocess_input
+from ._preprocessing import preprocess_input
 
 import torch
 

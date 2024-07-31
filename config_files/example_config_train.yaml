@@ -18,7 +18,7 @@ parts_diff_thresholds:
 # learning parameters
 loss: ce
 optimizer: adam
-batch_size: 64
+batch_size: 5
 
 lr: 1.0e-05
 warmup_epochs: 15
@@ -42,7 +42,7 @@ save_fig_iter: 1
 save_ckpt: false
 
 cyws:  # model architecture parameters
-  attention: coam
+  attention: gca
   coam_layer_data:
   - 3
   - - 512

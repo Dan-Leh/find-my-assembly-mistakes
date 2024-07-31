@@ -3,9 +3,9 @@ from typing import List, Optional, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from cyws_files.base import ClassificationHead, SegmentationHead, SegmentationModel
-from cyws_files.base import modules as md
-from cyws_files.encoders import get_encoder
+from models.network.base import ClassificationHead, SegmentationHead, SegmentationModel
+from .base import modules as md
+from .encoders import get_encoder
 
 
 # The following is modified from https://github.com/qubvel/segmentation_models.pytorch/blob/master/segmentation_models_pytorch/decoders/unet/model.py

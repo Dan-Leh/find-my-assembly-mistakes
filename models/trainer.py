@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
+import types
 
 import torch
 from torchvision.transforms import v2
@@ -12,14 +13,15 @@ from utils.plotter import make_numpy_grid, LossPlotter
 from utils.logger_tool import Logger, Timer
 from utils.transforms import denormalize
 from utils.data_stats import StatTracker
-from models.tmp_functions import get_optimizer, get_scheduler, build_model,\
-                                get_loss_func
+from utils.loss_funcs import get_loss_func
+from models.build_functions import get_optimizer, get_scheduler, build_model
 
 
 class CDTrainer():
 
-    def __init__(self, args, dataloaders):
-
+    def __init__(self, args:types.SimpleNamespace, dataloaders:dict) -> None:
+        ''' Initialize model, optimizer, etc... with config variables. '''
+        
         self.dataloaders = dataloaders
         
         # initialize functions and network       
@@ -33,9 +35,9 @@ class CDTrainer():
         self.stat_tracker = StatTracker(args.output_dir, "train", 
                                          args.batch_size)
 
-        self._initialize_variables(self, args)
+        self._initialize_variables(args)
         
-    def _initialize_variables(self, args):
+    def _initialize_variables(self, args:types.SimpleNamespace) -> None:
         ''' Initialize variables with config values & define logger'''
        
         # define logger file
@@ -43,9 +45,7 @@ class CDTrainer():
         self.logger = Logger(logger_path)
         self.logger.write_dict_str(args.__dict__)
         self.log_iter = args.log_iter
-        self.img_save_freq = args.save_fig_iter
-        self.eval_freq = args.eval_freq
-        
+        self.img_save_freq = args.save_fig_iter        
         # define timer
         self.timer = Timer()
         self.batch_size = args.batch_size
@@ -62,9 +62,7 @@ class CDTrainer():
         self.steps_per_epoch = 20000//self.batch_size 
         self.total_steps = (self.max_num_epochs - 
                             self.epoch_to_start)*self.steps_per_epoch
-        
         self.net_pred = None
-        self.pred_vis = None
         self.batch = None
         self.loss = None
         self.running_loss = None
@@ -72,13 +70,12 @@ class CDTrainer():
         self.batch_id = 0
         self.val_steps_per_epoch = 100
         self.epoch_id = 0
-        self.checkpoint_dir = args.checkpoint_dir
-        self.output_dir = args.output_dir
         self.vis_dir = args.vis_dir
         self.save_ckpt = args.save_ckpt
         self.resume_ckpt = args.resume_ckpt_path
         self.norm_type = args.img_transforms['normalization']
-        
+        if self.save_ckpt: self.checkpoint_dir = args.checkpoint_dir
+
     def _load_checkpoint(self) -> None:
         ''' load the last checkpoint from previous training and update states. '''
         
@@ -124,8 +121,8 @@ class CDTrainer():
         
         Arguments:
             gt (bool):  if true, return the blended ground truth change mask,
-                        else return the blended predicted change mask. '''
-                        
+                        else return the blended predicted change mask. 
+        '''                
         if gt == True:
             label_batch = self.batch[2].to(torch.uint8) * 255
         else: 
@@ -228,8 +225,8 @@ class CDTrainer():
         self.logger.write('\n')
 
     def _update_checkpoints(self) -> None:
-
-        # save current model
+        ''' Save the current model checkpoint. '''
+        
         self._save_checkpoint(ckpt_name='last_ckpt.pt')
         self.logger.write(f'Lastest model updated. '
                 f'Epoch_iou={self.epoch_iou:.4f}, Historical_best_iou='
