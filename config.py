@@ -16,19 +16,20 @@ def read_config(train:bool = True) -> types.SimpleNamespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,
             default='/shared/nl011006/res_ds_ml_restricted/dlehman'\
-                '/state-diff-net/configs/example_config.yaml')
+                '/state-diff-net/config_files/example_config_train.yaml')
         
     # gather all the values that were given through command line   
     overwrite_parser = get_overwrite_arguments(parser, train)
-    args = overwrite_parser.parse_args()
+    cmd_args = overwrite_parser.parse_args()
     
     # open config file 
-    with open(args.config, 'r') as configfile:
+    with open(cmd_args.config, 'r') as configfile:
         config = yaml.load(configfile, Loader=yaml.FullLoader)
         configfile.close()
-    delattr(args, 'config')  # delete config path so that it is not saved as arg
     
-    config = update_config(config, args)  # overwrite args based on flags
+    delattr(cmd_args, 'config')  # delete config path so that it is not saved as arg
+    config = update_config(config, cmd_args)  # overwrite args based on flags
+    config = filter_config(config, cmd_args, 'train' if train else 'test')
 
     # create directories and save config
     if train:
@@ -41,13 +42,14 @@ def read_config(train:bool = True) -> types.SimpleNamespace:
     config_ns = types.SimpleNamespace(**config) 
     return config_ns
 
-def update_config(config, new_args):
+
+def update_config(config:dict, new_args:argparse.Namespace) -> dict:
     ''' Function that replaces the arguments from the config file with the ones 
     passed by command line.
     
     Args:
         config (dict): a dictionary of all the config arguments from yaml file
-        new_args (Namespace): All of the arguments passed through command line
+        new_args (argparse.Namespace): All of the arguments passed through argparse
     Returns: 
         config (dict): dictionary where values of specified config arguments 
             are updated
@@ -61,7 +63,10 @@ def update_config(config, new_args):
                 config[parts[0]][parts[1]] = value
             else:  # update value
                 config[arg] = value
+        else:
+            check_exists(config, arg)
     return config
+
 
 def check_exists(config_dict:dict, arg:str) -> None:
     ''' Checks that the args passed by command line exist in the config file'''
@@ -72,19 +77,44 @@ def check_exists(config_dict:dict, arg:str) -> None:
         error = arg.split('/')[1] not in config_dict[arg.split('/')[0]].keys()
     if error:
         raise ValueError(f"The given argument \"{arg}\" is not in the config file")
+    
+    
+def filter_config(config_dict:dict, cmd_args:argparse.Namespace, split:str) -> dict:
+    ''' Get rid of arguments that are not relevant for train or test split. 
+    
+    Delete from config the arguments that are only relevant for training when
+    testing and delete arguments that are only relevant for testing while training,
+    by removing any argument that does not have a corresponding argparse. 
+    '''    
+    for key in list(config_dict.keys()):  # check all keys in the config file
+        if type(config_dict[key]) == dict:   # if this it is a subconfig
+            for child_key in list(config_dict[key].keys()):
+                arg = key+'/'+child_key
+                if arg not in vars(cmd_args).keys():
+                    del config_dict[key][child_key]
+                    print(f"Delete '{arg}' from config as it is not used for "
+                                                                    f"{split}ing")
+        elif key not in vars(cmd_args).keys():
+            del config_dict[key]
+            print(f"Delete '{key}' from config as it is not used for {split}ing")
+    
+    return config_dict
+
 
 def save_config(config_dict:dict) -> None: 
     ''' Save yaml file with config parameters in output directory. '''
     
     config_path = os.path.join(config_dict['output_dir'], "config.yaml")
 
+    config_copy = config_dict.copy()
     # delete arguments that do not need saving
-    delattr(config_dict, 'vis_dir')
-    delattr(config_dict, 'output_dir')
+    del config_copy['vis_dir']
+    del config_copy['output_dir']
     
     # save config
     with open(config_path, "w") as configfile:
         yaml.dump(config_dict, configfile)
+        
         
 def make_train_dirs(config_dict:dict) -> dict:
     ''' Make directories for saving checkpoints, training log and examples. 
@@ -119,6 +149,7 @@ def make_train_dirs(config_dict:dict) -> dict:
     os.mkdir(os.path.join(config_dict['vis_dir'], 'val'))
 
     return config_dict
+
     
 def make_test_dirs(config_dict: dict): 
     ''' Add arguments for testing and build directories '''
@@ -144,7 +175,10 @@ def make_test_dirs(config_dict: dict):
 
     return config_dict
 
+
 def get_overwrite_arguments(parser, train:bool): 
+
+    parser.add_argument('--experiment_name', type=str, help="Name used for creating checkpoint and 'results' directory")
 
     if train:
         parser.add_argument('--train_dir', type=str, help="The directory containing all the training data")
@@ -158,7 +192,7 @@ def get_overwrite_arguments(parser, train:bool):
         # training params
         parser.add_argument('--loss', type=str, help="Can be 'ce' (cross-entropy loss) or 'focal' (focal loss)")
         parser.add_argument('--optimizer', type=str, help="Options are 'sgd' or 'adam'")
-        parser.add_argument('--lr_policy', type=str, help="Options include 'cosine', 'linear', 'constant' & 'step'") # TODO
+        parser.add_argument('--lr_policy', type=str, help="Options include 'cosine', 'linear', 'constant' & 'step'")
         parser.add_argument('--lr', type=float, help="Maximum learning rate")
         parser.add_argument('--T_0', type=int, help='Number of epochs for first period of cosine lr scheduler')
         parser.add_argument('--T_mult', type=int, help='Multiplication factor for subsequent periods of cosine lr scheduler')
@@ -167,14 +201,24 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--save_ckpt', type=str2bool, help='Whether to save a checkpoint. Useful for testing code without creating checkpoint files.')    
         parser.add_argument('--init_type', type=str, help="What type of weight initialization to use for parameters that are not loaded from pretrained weights. Options include 'normal', 'xavier', 'kaiming' and 'orthogonal'")
         parser.add_argument('--cyws/pretrained_encoder', type=str2bool, help="Whether to load imagenet pretrained weights")
-
+        # geometric transformations
+        parser.add_argument('--img_transforms/rotation', type=str2bool, help="Whether to rotate the image randomly, either 0, 90, 180 or 270 degrees.")
+        parser.add_argument('--img_transforms/shear', type=int, help='Max amount of random shearing to apply independently to each image.')
+        parser.add_argument('--img_transforms/hflip_probability', type=float, help="Probability of random vertical flipping, same flipping applied to all images in the same pair")
+        parser.add_argument('--img_transforms/vflip_probability', type=float, help="Probability of random horizontal flipping, same flipping applied to all images in the same pair")
+        # photometric augmentations
+        parser.add_argument('--img_transforms/brightness', type=float)
+        parser.add_argument('--img_transforms/contrast', type=float)
+        parser.add_argument('--img_transforms/saturation', type=float)
+        parser.add_argument('--img_transforms/hue', type=float)
+        parser.add_argument('--img_transforms/g_kernel_size', type=float, help="Kernel size of gaussian blur")
+        parser.add_argument('--img_transforms/g_sigma_h', type=float, help="Maximum standard deviation that can be chosen for blurring kernel.")
+        parser.add_argument('--img_transforms/g_sigma_l', type=float, help="Minimum standard deviation that can be chosen for blurring kernel.")
 
     else: # test
         parser.add_argument('--checkpoint_dir', type=str, help="Only used during testing, to point to directory containing the model checkpoints")
         parser.add_argument('--test_dir', type=str, help="The directory containing the test dataset")
-    
-    parser.add_argument('--experiment_name', type=str, help="Name used for creating checkpoint and 'results' directory")
-    
+        
     # data details
     parser.add_argument('--orientation_thresholds', nargs=2, type=float, help="The minimum and maximum norm of quaternion difference between anchor and sample images")
     parser.add_argument('--parts_diff_thresholds', nargs=2, type=int, help="The minimum and maximum amount of parts that should differ between anchor and sample images (amount of change)")
@@ -187,35 +231,26 @@ def get_overwrite_arguments(parser, train:bool):
     parser.add_argument('--log_iter', type=int, help='How frequently to write the training/validation progress status into the log file.')
     
     # geometric transformations
+    parser.add_argument('--img_transforms/img_size', nargs=2, type=int, help="Size of the input images to the network, regardless of prior cropping, etc...")
     parser.add_argument('--img_transforms/ROI_crops', type=str2bool, help="Whether to create region of interest crops of the assembly object")
     parser.add_argument('--img_transforms/center_roi', type=str2bool, help='Whether or not to have roi crops perfectly centered i.e. to create perfectly aligned image pairs.')
     parser.add_argument('--img_transforms/random_crop', type=str2bool, help="Whether to create random crops of anchor and sample images wherein the whole assembly object is still visible.")
     parser.add_argument('--img_transforms/max_translation', type=float, help="Maximum amount of random translation between the anchor and sample images, indicated as a fraction of the image size, i.e. 10% translation should be 0.1.")
     parser.add_argument('--img_transforms/rescale', type=float, help="The maximum scale ratio between anchor and sample image. Default should be 1 if images should be the same scale")
-    parser.add_argument('--img_transforms/rotation', type=str2bool, help="Whether to rotate the image randomly, either 0, 90, 180 or 270 degrees.")
-    parser.add_argument('--img_transforms/shear', type=int, help='Max amount of random shearing to apply independently to each image.')
-    parser.add_argument('--img_transforms/hflip_probability', type=float, help="Probability of random vertical flipping, same flipping applied to all images in the same pair")
-    parser.add_argument('--img_transforms/vflip_probability', type=float, help="Probability of random horizontal flipping, same flipping applied to all images in the same pair")
-    # photometric augmentations
-    parser.add_argument('--img_transforms/brightness', type=float)
-    parser.add_argument('--img_transforms/contrast', type=float)
-    parser.add_argument('--img_transforms/saturation', type=float)
-    parser.add_argument('--img_transforms/hue', type=float)
-    parser.add_argument('--img_transforms/g_kernel_size', type=float, help="Kernel size of gaussian blur")
-    parser.add_argument('--img_transforms/g_sigma_h', type=float, help="Maximum standard deviation that can be chosen for blurring kernel.")
-    parser.add_argument('--img_transforms/g_sigma_l', type=float, help="Minimum standard deviation that can be chosen for blurring kernel.")
+    parser.add_argument('--img_transforms/normalization', type=str, help="According to which weights to normalize input images. Currently only supports 'imagenet'. ")
     
     # model architecture parameters
     parser.add_argument('--cyws/encoder', type=str, help="Which encoder to use. Options are resnet18, resnet34 and resnet50")
     parser.add_argument('--cyws/attention', type=str, help="Either 'gca' for global cross-attention, 'lca' for local cross-attention, 'msa' for multi-headed self-attention in addition to gca, or 'noam' for no attention module, i.e. simple concatenation")
-    parser.add_argument('--cyws/coam_layer_data', type=json.loads, hselp="List with the following: [number of layers at which to use cross-attention module, [list of the channel dimensions at each of the attention modules (starting at bottleneck)],[list of channel dimensions to use in attention layers]]")
+    parser.add_argument('--cyws/coam_layer_data', type=json.loads, help="List with the following: [number of layers at which to use cross-attention module, [list of the channel dimensions at each of the attention modules (starting at bottleneck)],[list of channel dimensions to use in attention layers]]")
     parser.add_argument('--cyws/decoder_attn_type', type=str, help="Should be 'scse' for squeeze and excitation block, else None")
-    parser.add_argument('--cyws/self_attention', type=str, help="Type of self-attention to use if attention type is 'MSA', options are: 'linear' or 'full'")
+    parser.add_argument('--cyws/self_attention', type=str, help="Type of self-attention to use if attention type is 'msa', options are: 'linear' or 'full'")
     parser.add_argument('--cyws/n_MSA_layers', type=int, help="Number of self-attention layers to use before cross-attention")
     parser.add_argument('--cyws/n_SA_heads', type=int, help="Number of heads in the self-attention")
     parser.add_argument('--cyws/kernel_sizes', type=int, nargs=3, help="Only for local cross-attention model: Receptive field on the sample image across which to take local self-attention, at each of the resolutions indicated in 'coam_layer_data'.")
     
     return parser
+
 
 def str2bool(v):
     ''' Convert string to boolean (alternative to store_true in argparse).'''

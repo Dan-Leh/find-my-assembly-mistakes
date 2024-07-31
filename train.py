@@ -1,12 +1,12 @@
 import torch; torch.manual_seed(0)
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader
 
 from datasets.synthdataset import SyntheticChangeDataset
 from config import read_config 
 from models.trainer import CDTrainer
 
 
-cfg = read_config() # get all variables from config file
+cfg = read_config(train=True) # get all variables from config file
 
 def remove_train_augmentations(tf_cfg: dict) -> dict:
     ''' Remove train-only augmentations from validation set. '''
@@ -25,7 +25,7 @@ datasets = {
     'train': SyntheticChangeDataset(
         data_path=cfg.train_dir,
         orientation_thresholds=cfg.orientation_thresholds, 
-        state_diff_thresholds=cfg.state_diff_thresholds, 
+        parts_diff_thresholds=cfg.parts_diff_thresholds, 
         img_transforms=cfg.img_transforms
         ),
     'val': SyntheticChangeDataset(

@@ -12,11 +12,11 @@ class RealChangeDataset(Dataset):
     def __init__(self, data_path:str = "", ROI: bool = False, img_tf: dict = {}):
         ''' 
         Args:
-            data_path (str): path to the folder containing the dataset
-            ROI (bool): whether to create region-of-interest crops
-            img_tf (dict): dictionary containing values for the following 
-                image transforms, i.e. keys of the dict: 'img_size', 
-                'normalization' and 'ROI_crops'
+            data_path (str):  path to the folder containing the dataset
+            ROI (bool):  whether to create region-of-interest crops
+            img_tf (dict):  dictionary containing values for the following 
+                        image transforms, i.e. keys of the dict: 'img_size', 
+                        'normalization' and 'ROI_crops'
         '''
         self.path_to_data = data_path
         self.ROI = ROI
