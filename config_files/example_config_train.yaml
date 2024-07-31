@@ -18,7 +18,7 @@ parts_diff_thresholds:
 # learning parameters
 loss: ce
 optimizer: adam
-batch_size: 5
+batch_size: 64
 
 lr: 1.0e-05
 warmup_epochs: 15
@@ -39,7 +39,7 @@ resume_results_dir: ''
 # logging parameters
 log_iter: 50
 save_fig_iter: 1
-save_ckpt: false
+save_ckpt: True
 
 cyws:  # model architecture parameters
   attention: gca
@@ -58,8 +58,8 @@ cyws:  # model architecture parameters
   - 7
   - 11
   pretrained_encoder: true
-  self_attention: None
-  n_MSA_layers: 0
+  self_attention: linear
+  n_MSA_layers: 1
   n_SA_heads: 8
 
 img_transforms:
