@@ -6,23 +6,43 @@ import types
 
 import torch
 from torchvision.transforms import v2
+from torch.utils.data import DataLoader
 
+from datasets.synthdataset import SyntheticChangeDataset
 from utils.metric_tool import ConfuseMatrixMeter
 from utils.loss_funcs import get_loss_func
 from utils.plotter import make_numpy_grid, LossPlotter
 from utils.logger_tool import Logger, Timer
-from utils.transforms import denormalize
 from utils.data_stats import StatTracker
 from utils.loss_funcs import get_loss_func
+from utils.utils import remove_train_augmentations, denormalize
 from models.build_functions import get_optimizer, get_scheduler, build_model
 
 
 class CDTrainer():
 
-    def __init__(self, args:types.SimpleNamespace, dataloaders:dict) -> None:
-        ''' Initialize model, optimizer, etc... with config variables. '''
-        
-        self.dataloaders = dataloaders
+    def __init__(self, args:types.SimpleNamespace) -> None:
+        ''' Initialize models, optimizer, etc... with config variables. '''
+
+        self.datasets = {
+            'train': SyntheticChangeDataset(
+                data_path=args.train_dir,
+                orientation_thresholds=args.orientation_thresholds, 
+                parts_diff_thresholds=args.parts_diff_thresholds, 
+                img_transforms=args.img_transforms
+                ),
+            'val': SyntheticChangeDataset(
+                data_path=args.val_dir,
+                orientation_thresholds=args.orientation_thresholds,
+                parts_diff_thresholds=args.parts_diff_thresholds, 
+                img_transforms=remove_train_augmentations(args.img_transforms)
+                )
+        }
+
+        self.dataloaders = {x: DataLoader(self.datasets[x], 
+                                batch_size=args.batch_size, shuffle=True, 
+                                num_workers=args.num_workers, drop_last=True)
+                        for x in ['train', 'val']}
         
         # initialize functions and network       
         self.net, self.device = build_model(args=args, gpu=args.gpu)
@@ -59,7 +79,7 @@ class CDTrainer():
      
         self.global_step = {'train': 0, 'val': 0}
         # Arbitrarily decided that 1 epoch = 20k images:
-        self.steps_per_epoch = 20000//self.batch_size 
+        self.steps_per_epoch = 2#0000//self.batch_size 
         self.total_steps = (self.max_num_epochs - 
                             self.epoch_to_start)*self.steps_per_epoch
         self.net_pred = None
@@ -68,12 +88,16 @@ class CDTrainer():
         self.running_loss = None
         self.split = ""
         self.batch_id = 0
-        self.val_steps_per_epoch = 100
+        self.val_steps_per_epoch = 0#100
         self.epoch_id = 0
         self.vis_dir = args.vis_dir
         self.save_ckpt = args.save_ckpt
         self.resume_ckpt = args.resume_ckpt_path
         self.norm_type = args.img_transforms['normalization']
+        self.gradually_augment = args.img_transforms['gradually_augment']
+        if self.gradually_augment:  
+            self.augmentations = args.img_transforms
+            self.num_workers = args.num_workers
         if self.save_ckpt: self.checkpoint_dir = args.checkpoint_dir
 
     def _load_checkpoint(self) -> None:
@@ -240,6 +264,24 @@ class CDTrainer():
             self._save_checkpoint(ckpt_name='best_ckpt.pt')
             self.logger.write('*' * 10 + 'Best model updated!\n')
             self.logger.write('\n')
+            
+    def _increase_augmentation(self):
+        ''' Gradually increase image augmentation each epoch. '''
+        
+        scaling_factor = self.epoch_id / self.max_num_epochs
+        # scale augmentations according to epoch
+        scaled_augs = self.augmentations.copy()
+        for key in ['brightness', 'contrast', 'saturation', 'hue', 'g_sigma_h']:
+            scaled_augs[key] = scaling_factor * self.augmentations[key]
+        scaled_augs['shear'] = round(scaling_factor * self.augmentations['shear'])
+        
+        self.datasets['train'].img_transforms = scaled_augs  # update set
+        # update data loader so that the changes come through
+        self.dataloaders['train'] =  DataLoader(self.datasets['train'], 
+                                batch_size=self.batch_size, shuffle=True, 
+                                num_workers=self.num_workers, drop_last=True)
+        
+        return iter(self.dataloaders['train'])
 
     def _reset_running_scores(self):
         self.running_metric.reset()
@@ -267,20 +309,22 @@ class CDTrainer():
         else:
             self.logger.write('training from scratch...')
             
-        train_data_iter = iter(self.dataloaders['train'])  # initialize loader
+        train_data_iter = iter(self.dataloaders['train'])  # initialize iter
 
         # loop over a set number of epochs
         for self.epoch_id in range(self.epoch_to_start, self.max_num_epochs+1):
-
+            
             ################## train #################
             ##########################################
             self._reset_running_scores()
             self.split = 'train'
             self.net.train()  # Set model to training mode
-            # Iterate over data
+            if self.gradually_augment: 
+                train_data_iter = self._increase_augmentation()
             self.logger.write('lr: %0.7f\n' % self.optimizer.param_groups[0]['lr'])
             self.logger.write(f'lr: {self.lr_scheduler.get_last_lr()[0]}\n')
             
+            # Iterate over data
             for self.batch_id in range(0, self.steps_per_epoch):
                 try:  # endlessly cycle through dataloader
                     batch = next(train_data_iter) 

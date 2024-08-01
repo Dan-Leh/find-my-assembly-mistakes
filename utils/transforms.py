@@ -6,20 +6,6 @@ from PIL import Image
 from torchvision.transforms import v2
 
 
-def denormalize(tensor, normalization_type):
-    if normalization_type == 'imagenet':
-        norm_mean = [0.485, 0.456, 0.406]
-        norm_std = [0.229,0.224,0.225]
-        
-    denorm_sequence = v2.Compose([
-    v2.Normalize(mean = [ 0., 0., 0. ],
-                std = [1/val for val in norm_std]),
-    v2.Normalize(mean = [-val for val in norm_mean],
-                std = [ 1., 1., 1. ])
-                ])
-    return denorm_sequence(tensor)
-
-
 class Transforms(torch.nn.Module):
     """ Transforms to apply same augmentations to anchor and label, while 
     controlling pose difference between anchor and sample. """
@@ -144,17 +130,15 @@ class Transforms(torch.nn.Module):
             shear_params= {'anchor': (0, 0), 'sample': (0, 0)} # default values
         elif max_amount > 0:
             # get shear values and apply to segmentation mask of anchor
-            shearx_anchor = random.randint(0, max_amount)
-            sheary_anchor = random.randint(0, max_amount-shearx_anchor)
-            self.segmask_anchor = torch.from_numpy(self.segmask_anchor)
-            self.segmask_anchor = torch.unsqueeze(self.segmask_anchor, dim=0)
+            shearx_anchor = random.randint(-max_amount, max_amount)
+            max_y_anchor = max_amount-shearx_anchor
+            sheary_anchor = random.randint(-max_y_anchor, max_y_anchor)
             shear_params = {'anchor': (shearx_anchor, sheary_anchor)}
 
             # get shear values and apply to segmentation mask of sample
-            shearx_sample = random.randint(0, max_amount)
-            sheary_sample = random.randint(0, max_amount-shearx_sample)
-            self.segmask_sample = torch.from_numpy(self.segmask_sample)
-            self.segmask_sample = torch.unsqueeze(self.segmask_sample, dim=0)
+            shearx_sample = random.randint(-max_amount, max_amount)
+            max_y_sample = max_amount-shearx_sample
+            sheary_sample = random.randint(-max_y_sample, max_y_sample)
             shear_params['sample'] = (shearx_sample, sheary_sample)
         else:
             raise ValueError("Maximum shear amount must be a positive integer")

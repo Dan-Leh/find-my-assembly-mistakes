@@ -16,7 +16,7 @@ def read_config(train:bool = True) -> types.SimpleNamespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,
             default='/shared/nl011006/res_ds_ml_restricted/dlehman'\
-                '/state-diff-net/config_files/example_config_train.yaml')
+                '/state-diff-net/config_files/much_aug.yaml')
         
     # gather all the values that were given through command line   
     overwrite_parser = get_overwrite_arguments(parser, train)
@@ -214,6 +214,7 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--img_transforms/g_kernel_size', type=float, help="Kernel size of gaussian blur")
         parser.add_argument('--img_transforms/g_sigma_h', type=float, help="Maximum standard deviation that can be chosen for blurring kernel.")
         parser.add_argument('--img_transforms/g_sigma_l', type=float, help="Minimum standard deviation that can be chosen for blurring kernel.")
+        parser.add_argument('--img_transforms/gradually_augment', type=str2bool, help="If true, start with little shear and color-based augmentation (brightness, contrast, saturation, hue, g_sigma_h) & gradually increase values proportionally to epoch till max epoch is reached. If false, keep values constant.")
 
     else: # test
         parser.add_argument('--checkpoint_dir', type=str, help="Only used during testing, to point to directory containing the model checkpoints")
@@ -244,10 +245,10 @@ def get_overwrite_arguments(parser, train:bool):
     parser.add_argument('--cyws/attention', type=str, help="Either 'gca' for global cross-attention, 'lca' for local cross-attention, 'msa' for multi-headed self-attention in addition to gca, or 'noam' for no attention module, i.e. simple concatenation")
     parser.add_argument('--cyws/coam_layer_data', type=json.loads, help="List with the following: [number of layers at which to use cross-attention module, [list of the channel dimensions at each of the attention modules (starting at bottleneck)],[list of channel dimensions to use in attention layers]]")
     parser.add_argument('--cyws/decoder_attn_type', type=str, help="Should be 'scse' for squeeze and excitation block, else None")
-    parser.add_argument('--cyws/self_attention', type=str, help="Type of self-attention to use if attention type is 'msa', options are: 'linear' or 'full'")
-    parser.add_argument('--cyws/n_MSA_layers', type=int, help="Number of self-attention layers to use before cross-attention")
-    parser.add_argument('--cyws/n_SA_heads', type=int, help="Number of heads in the self-attention")
-    parser.add_argument('--cyws/kernel_sizes', type=int, nargs=3, help="Only for local cross-attention model: Receptive field on the sample image across which to take local self-attention, at each of the resolutions indicated in 'coam_layer_data'.")
+    parser.add_argument('--cyws/self_attention', type=str, help="Only relevant if attention='msa': Type of self-attention to use if attention type is 'msa', options are: 'linear' or 'full'")
+    parser.add_argument('--cyws/n_MSA_layers', type=int, help="Only relevant if attention='msa': Number of self-attention layers to use before cross-attention")
+    parser.add_argument('--cyws/n_SA_heads', type=int, help="Only relevant if attention='msa': Number of heads in the self-attention")
+    parser.add_argument('--cyws/kernel_sizes', type=int, nargs=3, help="Only relevant if attention='lca': Receptive field on the sample image across which to take local self-attention, at each of the resolutions indicated in 'coam_layer_data'.")
     
     return parser
 

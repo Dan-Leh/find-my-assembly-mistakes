@@ -112,5 +112,17 @@ def initialize_weights(net, args):
     return net
 
 
-
+def remove_train_augmentations(tf_cfg: dict) -> dict:
+    ''' Remove train-only augmentations from validation set. '''
+    
+    val_transforms = tf_cfg.copy()
+    for aug in ['hflip_probability', 'vflip_probability', 'brightness', 
+                'contrast', 'saturation', 'hue', 'shear']:
+        val_transforms[aug] = 0
+    for aug in ['g_kernel_size', 'g_sigma_l', 'g_sigma_h']:
+        val_transforms[aug] = 1
+    for aug in ['rotation']:
+        val_transforms[aug] = False
+        
+    return val_transforms
 

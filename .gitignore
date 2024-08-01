@@ -1,0 +1,10 @@
+results/*
+
+*.pyc
+*.png
+*.jpg
+*.pt
+*.pth
+*.npy
+*.pyc
+__pycache__/*
