@@ -342,7 +342,7 @@ class SyntheticChangeDataset(Dataset):
         img_indices_correct_seq = img_indices[img_indices[:,0] == sequence]
         return img_indices_correct_seq[0,1]
        
-    def _find_SequenceB_and_state2(self, sequence_a:int, frame_1:int, state_1:int) \
+    def _find_SequenceB_and_state2(self, sequence_a:int, state_1:int) \
                                 -> tuple[Optional[int],Optional[int],Optional[float]]: 
         ''' Pair two images based on chosen orientation and part difference thresholds 
         
@@ -352,7 +352,6 @@ class SyntheticChangeDataset(Dataset):
         
         Arguments:
             sequence_a (int): sequence index of the anchor image
-            frame_1 (int): index of the frame of the anchor image
             state_1 (int): state of the anchor image
         Returns:
             sequence_b (int): sequence index of the chosen sample image
