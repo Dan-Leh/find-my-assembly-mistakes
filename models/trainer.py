@@ -79,7 +79,7 @@ class CDTrainer():
      
         self.global_step = {'train': 0, 'val': 0}
         # Arbitrarily decided that 1 epoch = 20k images:
-        self.steps_per_epoch = 2#0000//self.batch_size 
+        self.steps_per_epoch = 20000//self.batch_size 
         self.total_steps = (self.max_num_epochs - 
                             self.epoch_to_start)*self.steps_per_epoch
         self.net_pred = None
@@ -88,7 +88,7 @@ class CDTrainer():
         self.running_loss = None
         self.split = ""
         self.batch_id = 0
-        self.val_steps_per_epoch = 0#100
+        self.val_steps_per_epoch = 100
         self.epoch_id = 0
         self.vis_dir = args.vis_dir
         self.save_ckpt = args.save_ckpt
