@@ -2,7 +2,7 @@
 #PBS -l select=1:ncpus=8:ngpus=1:gpu_type=v100:mem=32gb:dcloc=htc
 #PBS -N gca
 
-# source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
+source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 
 cd /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net
 

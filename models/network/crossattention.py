@@ -104,13 +104,10 @@ class LocalAttentionLayer(nn.Module):
         return attended_features
         
             
-    def forward(self, query_features, key_features, vis_CA, same_WqWk):
+    def forward(self, query_features, key_features, vis_CA):
 
         Q = self.query_dimensionality_reduction(query_features)
-        if same_WqWk:
-            K = self.query_dimensionality_reduction(key_features)
-        else: # default for cyws
-            K = self.reference_dimensionality_reduction(key_features)
+        K = self.reference_dimensionality_reduction(key_features)
         V = key_features
         # to make sure attended features are on same device
         device = V.get_device() if V.get_device() >=0 else 'cpu' 

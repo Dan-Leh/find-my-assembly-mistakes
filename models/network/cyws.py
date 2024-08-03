@@ -50,7 +50,7 @@ class CYWS(nn.Module):
                     input_channels=coam_input_channels[i],
                     hidden_channels=coam_hidden_channels[i],
                     attention_type=attn_type,
-                    kernel_size=cyws_params['kernel_sizes']
+                    kernel_size=cyws_params['kernel_sizes'][i]
                     )
                 for i in range(n_coam)
             ]
