@@ -270,7 +270,8 @@ class CDTrainer():
         scaling_factor = self.epoch_id / self.max_num_epochs
         # scale augmentations according to epoch
         scaled_augs = self.augmentations.copy()
-        for key in ['brightness', 'contrast', 'saturation', 'hue', 'g_sigma_h']:
+        for key in ['brightness', 'contrast', 'saturation', 'hue', 
+                                            'g_sigma_h', 'g_sigma_l']:
             scaled_augs[key] = scaling_factor * self.augmentations[key]
         scaled_augs['shear'] = round(scaling_factor * self.augmentations['shear'])
         
