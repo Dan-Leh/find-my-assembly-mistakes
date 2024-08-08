@@ -51,7 +51,7 @@ class EvalTransforms():
         self.transforms4label = v2.Resize(img_size, 
                                     interpolation=InterpolationMode.NEAREST)
         
-        if test_type.startswith('ROI'):
+        if test_type.startswith('roi'):
             self.crop_params = {'anchor': self._roi_crop_parameter(segmask1),
                                 'sample': self._roi_crop_parameter(segmask2)}
         
