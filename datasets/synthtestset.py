@@ -224,19 +224,19 @@ class EvalDataset(Dataset):
                 variable_of_interest = self._get_max_orientation_diff(
                                                     img_pair["quaternion_difference"])
                 tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
-                                    self.norm_type, 0, None, None, 1)
+                                    self.norm_type, None, None)
             elif self.test_type == "roi_aligned":
                 variable_of_interest = self._get_max_orientation_diff(
                                                     img_pair["quaternion_difference"])
                 # load segmentation masks to make roi crops
                 SegMaskImage1, SegMaskImage2 = self._load_segmentation_masks(ref_seq, 
                                                 sample_seq, ref_frame, sample_frame) 
-                tf = EvalTransforms(self.test_type, (0,0), self.img_size, None, 
-                        self.norm_type, None, SegMaskImage1, SegMaskImage2, None)
+                tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
+                        self.norm_type, SegMaskImage1, SegMaskImage2)
             else:
                 variable_of_interest = None
                 tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
-                                    self.norm_type, 0, None, None, 1)
+                                    self.norm_type, None, None)
         
             # apply transforms
             anchor = tf(anchor, 'anchor')
