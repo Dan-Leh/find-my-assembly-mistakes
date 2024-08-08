@@ -1,6 +1,6 @@
 #PBS -S /bin/bash
 #PBS -l select=1:ncpus=8:ngpus=1:gpu_type=v100:mem=32gb:dcloc=htc
-#PBS -N gca
+#PBS -N test
 
 source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 

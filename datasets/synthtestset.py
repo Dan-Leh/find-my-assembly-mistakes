@@ -17,7 +17,8 @@ class EvalDataset(Dataset):
         data_list_filepath: str = "", 
         norm_type: str = 'imagenet',
         img_size: tuple = (256,256), 
-        test_type: str = "",  
+        test_type: str = "",
+        ignore_0_change = True
         ):
         '''
         Arguments:
@@ -33,6 +34,14 @@ class EvalDataset(Dataset):
         self.test_type = test_type
         self.path_to_data, filename = os.path.split(data_list_filepath)
         self.determinstic_set = self._load_json(filename)  # paths to image pairs
+        if ignore_0_change:
+            if type(self.determinstic_set[0]["n_differences"])==int:
+                no_change = 0
+            else:
+                no_change = [0,0]
+            for i in range(len(self.determinstic_set)-1,-1,-1):  # loop backward
+                if self.determinstic_set[i]["n_differences"] == no_change:
+                    self.determinstic_set.pop(i)
         
         if test_type in ["orientation", "roi_aligned"]:
             self.id2indexdict = self._id2index() 
@@ -223,6 +232,7 @@ class EvalDataset(Dataset):
             if self.test_type == "orientation":
                 variable_of_interest = self._get_max_orientation_diff(
                                                     img_pair["quaternion_difference"])
+                variable_of_interest = img_pair["quaternion_difference"]
                 tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
                                     self.norm_type, None, None)
             elif self.test_type == "roi_aligned":

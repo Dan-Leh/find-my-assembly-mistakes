@@ -1,0 +1,102 @@
+/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config.py:80: UserWarning: The given argument "test_sets" is not in the config file
+  warnings.warn(f"The given argument \"{arg}\" is not in the config file")
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+Traceback (most recent call last):
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'F1_0'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/test.py", line 98, in <module>
+    Evaluator.eval_models()
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/models/evaluator.py", line 272, in eval_models
+    self._collect_final_states() 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/models/evaluator.py", line 239, in _collect_final_states
+    self.score_tracker_micro.save_scores() 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/utils/plotter.py", line 157, in save_scores
+    all_score_swapped_classes = df[swap_classes[metric_of_interest]].to_numpy()
+                                ~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/frame.py", line 4090, in __getitem__
+    indexer = self.columns.get_loc(key)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: 'F1_0'
+/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config.py:80: UserWarning: The given argument "test_sets" is not in the config file
+  warnings.warn(f"The given argument \"{arg}\" is not in the config file")
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+Traceback (most recent call last):
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'F1_0'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/test.py", line 98, in <module>
+    Evaluator.eval_models()
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/models/evaluator.py", line 272, in eval_models
+    self._collect_final_states() 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/models/evaluator.py", line 239, in _collect_final_states
+    self.score_tracker_micro.save_scores() 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/utils/plotter.py", line 157, in save_scores
+    all_score_swapped_classes = df[swap_classes[metric_of_interest]].to_numpy()
+                                ~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/frame.py", line 4090, in __getitem__
+    indexer = self.columns.get_loc(key)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: 'F1_0'
+/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config.py:80: UserWarning: The given argument "test_sets" is not in the config file
+  warnings.warn(f"The given argument \"{arg}\" is not in the config file")
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+Traceback (most recent call last):
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'F1_0'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/test.py", line 98, in <module>
+    Evaluator.eval_models()
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/models/evaluator.py", line 272, in eval_models
+    self._collect_final_states() 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/models/evaluator.py", line 239, in _collect_final_states
+    self.score_tracker_micro.save_scores() 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/utils/plotter.py", line 157, in save_scores
+    all_score_swapped_classes = df[swap_classes[metric_of_interest]].to_numpy()
+                                ~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/frame.py", line 4090, in __getitem__
+    indexer = self.columns.get_loc(key)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: 'F1_0'
