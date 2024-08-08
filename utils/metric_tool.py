@@ -52,15 +52,19 @@ class ConfuseMatrixMeter(AverageMeter):
         super(ConfuseMatrixMeter, self).__init__()
         self.n_class = n_class
 
-    def update_cm(self, pr, gt):
-        """"""
+    def update_cm(self, pr:np.ndarray, gt:np.ndarray, return_iou:bool=True) -> float:
+        """ Update running confusion matrix and return current IoU score"""
+        
         confuse_matrix = get_confuse_matrix(num_classes=self.n_class, 
                                             label_gts=gt, label_preds=pr) 
-        self.update(confuse_matrix, weight=1) # updates values of the running cm
+        self.update(confuse_matrix, weight=1)  # updates values of the running cm
         current_scores = cm2score(confuse_matrix) 
-        return current_scores['iou_1']
+        if return_iou:
+            return current_scores['iou_1']
 
     def get_scores(self):
+        ''' Convert the sum of the running cofusion matrix into scores like IoU '''
+        
         scores_dict = cm2score(self.sum)
         return scores_dict
 

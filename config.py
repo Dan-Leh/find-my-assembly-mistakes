@@ -3,6 +3,7 @@ import os
 import argparse
 import yaml
 import types
+import warnings
 
 def read_config(train:bool = True) -> types.SimpleNamespace:
     ''' Read config from a yaml file.
@@ -76,7 +77,7 @@ def check_exists(config_dict:dict, arg:str) -> None:
     else: # if argument is composed of parent and child, check that child exists
         error = arg.split('/')[1] not in config_dict[arg.split('/')[0]].keys()
     if error:
-        raise ValueError(f"The given argument \"{arg}\" is not in the config file")
+        warnings.warn(f"The given argument \"{arg}\" is not in the config file")
     
     
 def filter_config(config_dict:dict, cmd_args:argparse.Namespace, split:str) -> dict:
@@ -172,7 +173,7 @@ def make_test_dirs(config_dict: dict):
             config_dict['checkpoint_root'], config_dict['experiment_name'])
     
     config_dict['vis_dir'] = os.path.join(config_dict['output_dir'], 'visualize')
-
+    
     return config_dict
 
 
@@ -184,12 +185,16 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--train_dir', type=str, help="The directory containing all the training data")
         parser.add_argument('--val_dir', type=str, help="The directory containing all the validation data")
         parser.add_argument('--checkpoint_root', type=str, help="Checkpoint dir will be created by adding folder with experiment name")
-        parser.add_argument('--output_root', type=str, help="The directory where all experiment results are stored. A folder with the experiment name will be created in this directory")
 
         parser.add_argument('--resume_ckpt_path', type=str, help="If not an empty string, training is resumed with weights loaded from the given checkpoint path")
         parser.add_argument('--resume_results_dir', type=str, help="The directory of the results of the model from which we are resuming training, used so that the resumed training plots its loss curve in the same image")
 
-        # training params
+            # data details
+        parser.add_argument('--orientation_thresholds', nargs=2, type=float, help="The minimum and maximum norm of quaternion difference between anchor and sample images")
+        parser.add_argument('--parts_diff_thresholds', nargs=2, type=int, help="The minimum and maximum amount of parts that should differ between anchor and sample images (amount of change)")
+
+        # training hyperparams
+        parser.add_argument('--batch_size', type=int)
         parser.add_argument('--loss', type=str, help="Can be 'ce' (cross-entropy loss) or 'focal' (focal loss)")
         parser.add_argument('--optimizer', type=str, help="Options are 'sgd' or 'adam'")
         parser.add_argument('--lr_policy', type=str, help="Options include 'cosine', 'linear', 'constant' & 'step'")
@@ -200,7 +205,6 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--max_epochs', type=int, help='Number of epochs to train for')
         parser.add_argument('--save_ckpt', type=str2bool, help='Whether to save a checkpoint. Useful for testing code without creating checkpoint files.')    
         parser.add_argument('--init_type', type=str, help="What type of weight initialization to use for parameters that are not loaded from pretrained weights. Options include 'normal', 'xavier', 'kaiming' and 'orthogonal'")
-        parser.add_argument('--cyws/pretrained_encoder', type=str2bool, help="Whether to load imagenet pretrained weights")
         # geometric transformations
         parser.add_argument('--img_transforms/rotation', type=str2bool, help="Whether to rotate the image randomly, either 0, 90, 180 or 270 degrees.")
         parser.add_argument('--img_transforms/shear', type=int, help='Max amount of random shearing to apply independently to each image.')
@@ -218,14 +222,10 @@ def get_overwrite_arguments(parser, train:bool):
 
     else: # test
         parser.add_argument('--checkpoint_dir', type=str, help="Only used during testing, to point to directory containing the model checkpoints")
-        parser.add_argument('--test_dir', type=str, help="The directory containing the test dataset")
-        
-    # data details
-    parser.add_argument('--orientation_thresholds', nargs=2, type=float, help="The minimum and maximum norm of quaternion difference between anchor and sample images")
-    parser.add_argument('--parts_diff_thresholds', nargs=2, type=int, help="The minimum and maximum amount of parts that should differ between anchor and sample images (amount of change)")
+        parser.add_argument('--test_sets', type=str, help="Names of the test sets to evaluate model on.")
 
     # misc
-    parser.add_argument('--batch_size', type=int)
+    parser.add_argument('--output_root', type=str, help="The directory where all experiment results are stored. A folder with the experiment name will be created in this directory")
     parser.add_argument('--gpu', type=str2bool, help='Uses GPU if true, else CPU')
     parser.add_argument('--num_workers', type=int)
     parser.add_argument('--save_fig_iter', type=int, help='After how many iterations should current training/validation examples be saves')
@@ -249,7 +249,8 @@ def get_overwrite_arguments(parser, train:bool):
     parser.add_argument('--cyws/n_MSA_layers', type=int, help="Only relevant if attention='msa': Number of self-attention layers to use before cross-attention")
     parser.add_argument('--cyws/n_SA_heads', type=int, help="Only relevant if attention='msa': Number of heads in the self-attention")
     parser.add_argument('--cyws/kernel_sizes', type=int, nargs=3, help="Only relevant if attention='lca': Receptive field on the sample image across which to take local self-attention, at each of the resolutions indicated in 'coam_layer_data'.")
-    
+    parser.add_argument('--cyws/pretrained_encoder', type=str2bool, help="Whether to load imagenet pretrained weights")
+
     return parser
 
 

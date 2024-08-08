@@ -20,6 +20,7 @@ from models.build_functions import get_optimizer, get_scheduler, build_model
 
 
 class CDTrainer():
+    ''' Trainer of change detection on synthetic assembly images '''
 
     def __init__(self, args:types.SimpleNamespace) -> None:
         ''' Initialize models, optimizer, etc... with config variables. '''
@@ -109,14 +110,13 @@ class CDTrainer():
                                 map_location=self.device)
         # update net states
         self.net.load_state_dict(checkpoint['model_state_dict'])
-
+        self.net.to(self.device)
+        
         # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # self.lr_scheduler.load_state_dict(
             # checkpoint['exp_lr_scheduler_state_dict'])
 
-        self.net.to(self.device)
-
-        # update some other states
+        # update some states
         self.epoch_to_start = checkpoint['epoch_id'] + 1
         self.best_val_iou = checkpoint['best_val_iou']
         self.best_epoch_id = checkpoint['best_epoch_id']
@@ -184,14 +184,13 @@ class CDTrainer():
         
         target = self.batch[2].to(self.device).detach().cpu().numpy().squeeze(1)
         net_pred = self.net_pred.detach()
-
         net_pred = torch.argmax(net_pred, dim=1).cpu().numpy()
 
         current_iou = self.running_metric.update_cm(net_pred, target) 
         return current_iou
 
     def _collect_running_batch_states(self) -> None:
-        ''' Update states/scores and log text & images depending on epoch. '''
+        ''' Update states/scores and log text & images depending on iteration. '''
         
         running_iou = self._update_metric()
         imps, est = self._timer_update()

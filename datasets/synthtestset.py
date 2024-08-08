@@ -18,7 +18,6 @@ class EvalDataset(Dataset):
         norm_type: str = 'imagenet',
         img_size: tuple = (256,256), 
         test_type: str = "",  
-        saved_pairs: bool = False 
         ):
         '''
         Arguments:
@@ -27,27 +26,22 @@ class EvalDataset(Dataset):
             norm_type (str): which normalization to apply to input images
             img_size (tuple of ints): height and width of images that are outputted
             test_type (str): whether we are testing for orientation difference, 
-                translation, scaling or roi cropping.
-            saved_pairs(bool): if True, some augmentation (eg. translation, scaling
-                or roi cropping) has been applied and image pairs have been saved.
-                Else, 'raw' images are loaded according to data_list_filepath.
+                translation, scaling or roi cropping. 
         '''
         self.norm_type = norm_type
         self.img_size = img_size
-        self.path_to_data, filename = os.path.split(data_list_filepath)
         self.test_type = test_type
-        self.saved_pairs = saved_pairs
+        self.path_to_data, filename = os.path.split(data_list_filepath)
+        self.determinstic_set = self._load_json(filename)  # paths to image pairs
         
-        self.determinstic_set = self._load_json(filename) # contains defined image pairs
-        
-        if test_type in ["orientation", "ROI_aligned"] or not saved_pairs:
+        if test_type in ["orientation", "roi_aligned"]:
             self.id2indexdict = self._id2index() 
             # list containing the state of each image in set
             self.state_list = self._load_json('state_list.json') 
             # get the number of frames per sequence (used for indexing in state_list)
             seq_dir = os.path.join(self.path_to_data,"sequence0000")
             self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
-        
+            
     def _load_json(self, name: str) -> list:
         ''' load json file with specified name from data directory '''
         
@@ -64,14 +58,13 @@ class EvalDataset(Dataset):
         ''' Make dictionary that converts labelIDs to part index.
         
         Each state is described by a binary sequence, where each bit indicates 
-        whether a part of the object is in that state or not. The index of each
-        part of the assembly object in that binary sequence is given by the 
-        "PartList.json" file. This function makes a dictionary that contains the 
-        part index corresponding to each part ID contained in the instance segmentation
+        whether a part of the object is in that state or not. The index of each part 
+        of the assembly object in that binary sequence is given by the PartList.json 
+        file. This function makes a dictionary that contains the part index 
+        corresponding to each part ID contained in the instance segmentation
         annotation of each image in the dataset. It is needed for generating ground
         truth masks by comparing what parts are present in anchor and sample images.
         '''
-
         id2index = {}
         annotationDefinitions = self._load_json("annotation_definitions.json")
         for annotationDefinition in annotationDefinitions["annotationDefinitions"]:
@@ -181,6 +174,11 @@ class EvalDataset(Dataset):
     def __getitem__(self, idx:int):
         ''' Determinstically go through dataset & return pairs with label. 
         
+        If self.test_type is eg. translation, scaling, or roi cropping, random 
+        augmentations have been applied and image pairs have been saved with them. 
+        Else,  data_list_filepath contains the paths to deterministic iamge pairs
+        that are loaded from dataset iwithout applying any randomization.
+        
         Returns:
             anchor (pil Image):
             sample (pil Image):
@@ -194,7 +192,7 @@ class EvalDataset(Dataset):
         img_pair = self.determinstic_set[idx]
         
         # if orientation difference is the changing variable
-        if self.test_type == "orientation" or self.test_type == "ROI_aligned":
+        if self.test_type == "orientation" or self.test_type == "roi_aligned":
             ref_seq, ref_frame = img_pair["A1"]
             sample_seq, sample_frame = img_pair["B2"]
             max_parts_diff = img_pair["n_differences"][1]
@@ -214,7 +212,7 @@ class EvalDataset(Dataset):
                                                     img_pair["quaternion_difference"])
                 tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
                                     self.norm_type, 0, None, None, 1)
-            elif self.test_type == "ROI_aligned":
+            elif self.test_type == "roi_aligned":
                 variable_of_interest = self._get_max_orientation_diff(
                                                     img_pair["quaternion_difference"])
                 # load segmentation masks to make roi crops
@@ -263,7 +261,7 @@ class EvalDataset(Dataset):
         assert (change_mask.shape[-2:] == anchor.shape[-2:]), "Change mask and anchor "\
                                                 "image do not have the same dimensions"
         assert torch.count_nonzero(change_mask) + torch.count_nonzero(1-change_mask) == \
-            self.img_transforms['img_size'][0]*self.img_transforms['img_size'][1], \
-                "There are values in the change_mask that are neither 0 nor 1"
+                            self.img_size[0]*self.img_size[1], \
+                            "There are values in the change_mask that are neither 0 nor 1"
         
         return anchor, sample, change_mask, variable_of_interest, max_parts_diff 

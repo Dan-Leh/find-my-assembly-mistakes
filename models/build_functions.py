@@ -55,7 +55,7 @@ def get_scheduler(optimizer, args):
     return scheduler
 
 
-def build_model(args, init_gain=0.02, gpu=False):
+def build_model(args, init_gain=0.02, gpu=False, train=True):
     ''' Return model with initialized and/or pretrained weights. '''
     
     # instantiate model
@@ -63,7 +63,8 @@ def build_model(args, init_gain=0.02, gpu=False):
     device = torch.device("cuda" if torch.cuda.is_available() 
                                    and args.gpu else "cpu")
     model.to(device)
-    model = initialize_weights(model, args)
+    if train == True:
+        model = initialize_weights(model, args)
 
     return model, device
 
