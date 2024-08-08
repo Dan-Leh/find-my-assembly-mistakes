@@ -1,12 +1,12 @@
 #PBS -S /bin/bash
 #PBS -l select=1:ncpus=8:ngpus=1:gpu_type=v100:mem=32gb:dcloc=htc
-#PBS -N gca
+#PBS -N test_models
 
 source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 
 cd /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net
 
-for NAME in gca lca msa
+for NAME in lca msa
 do
     python test.py \
     --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME'/config.yaml' \
