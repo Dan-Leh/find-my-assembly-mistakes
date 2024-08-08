@@ -116,7 +116,20 @@ class EvalDataset(Dataset):
             segmentations[j] = (semseg > 0).astype(np.uint8) # make masks binary
             
         return segmentations[0], segmentations[1]
-       
+    
+    def _get_instance_info(self, sequence:int, frame:int) -> list:
+        ''' Load instance segmentation label definitions from frame_data file. '''
+        
+        seq_name = f"sequence{str(sequence).zfill(4)}"
+        file_name = f"step{str(frame).zfill(4)}.frame_data.json"
+        full_path = os.path.join(seq_name, file_name)
+        json_data = self._load_json(full_path)
+        for annotation in json_data["captures"][0]["annotations"]:
+            if annotation["id"] == "instance segmentation":
+                instances = annotation["instances"]; break
+        
+        return instances
+
     def _load_binary_change_mask(self, sequence: int, frame_1: int, frame_2: int, 
                                  state_1: int, state_2: int) -> Image.Image:
         ''' Load the binary change mask of an image pair from the dataset.
