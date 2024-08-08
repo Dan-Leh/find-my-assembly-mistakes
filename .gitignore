@@ -7,4 +7,5 @@ results/*
 *.pth
 *.npy
 *.pyc
+*.pyo
 __pycache__/*

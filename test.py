@@ -72,7 +72,7 @@ for eval_set in eval_set_list:
                 else:
                     data_list_filepath = os.path.join(data_root, 
                             set2dir_name[eval_set], "eval_rand_20k.json")
-            else: # if the crops can have some translation
+            else: # if the crops can have some small translations
                 data_list_filepath = os.path.join(data_root, "Test_pairs", 
                                     eval_set+"_"+test_type, "pair_info.json")
                 

@@ -2,7 +2,6 @@
 train_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Train_states_v2
 val_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Val_states_v2
 checkpoint_root: /hpc/scratch/dlehman/CD_checkpoints
-test_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Val_states_v2
 
 output_root: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results
 experiment_name: train_config
@@ -74,15 +73,15 @@ img_transforms:
   max_translation: 0
   rescale: 1
   rotation: true
-  shear: 10
+  shear: 0
   hflip_probability: 0.5
   vflip_probability: 0.2
   # photometric transforms
-  brightness: 0.6
-  contrast: 0.6
-  saturation: 0.6
+  brightness: 0.5
+  contrast: 0.5
+  saturation: 0.5
   hue: 0.1
-  g_kernel_size: 7
-  g_sigma_h: 10
+  g_kernel_size: 5
+  g_sigma_h: 1
   g_sigma_l: 0.01
   gradually_augment: True
