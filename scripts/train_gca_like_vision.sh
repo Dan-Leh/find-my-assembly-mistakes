@@ -6,7 +6,7 @@ source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 
 cd /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net
 
-NAME=gca_less_aug
+NAME=gca_like_VISION
 python train.py \
 --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config_files/example_config_train.yaml' \
 --experiment_name $NAME \
@@ -17,25 +17,23 @@ python train.py \
 --img_transforms/gradually_augment false \
 --T_0 300 
 
-
-python test.py \
---config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME'/config.yaml' \
---test_sets 'v2 extra inter' \
-
-
 FT_NAME=gca_like_VISION_ft
 python train.py \
 --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME'/config.yaml' \
 --resume_ckpt_path '/hpc/scratch/dlehman/CD_checkpoints/'$NAME'/last_ckpt.pt' \
 --resume_results_dir '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME \
 --max_epochs 100 \
---data_augmentations/contrast 0.5 \
---data_augmentations/brightness 0.5 \
+--img_transforms/contrast 0.5 \
+--img_transforms/brightness 0.5 \
 --lr_policy linear \
 --lr 1e-5 \
 --warmup_epochs 5 \
---project_name $FT_NAME 
+--experiment_name $FT_NAME 
 
 python test.py \
 --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$FT_NAME'/config.yaml' \
---test_sets 'v2 extra inter' \
+--test_sets 'v2 extra inter' 
+
+python test.py \
+--config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME'/config.yaml' \
+--test_sets 'v2 extra inter' 

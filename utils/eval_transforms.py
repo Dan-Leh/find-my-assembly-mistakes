@@ -2,12 +2,14 @@ import torch
 import numpy as np
 from torchvision.transforms import v2
 from torchvision.transforms import InterpolationMode
+from typing import Optional
 
 class EvalTransforms():
     ''' Image preprocessing for model evaluation. '''
     
     def __init__(self, test_type:str, old_size:tuple, img_size:tuple, 
-                 norm_type:str, segmask1:np.ndarray, segmask2:np.ndarray):
+                 norm_type:str, segmask1:np.ndarray, segmask2:np.ndarray,
+                 crop_params:Optional[dict]=None):
         '''
         Arguments:
             test_type (str): if it is 'ROI_aligned', the roi cropping function 
@@ -20,7 +22,8 @@ class EvalTransforms():
                                    used for making roi crops
             segmask1 (np.ndarray): foreground/background segmentation of sample,
                                    used for making roi crops
-            '''
+        '''
+        
         self.test_type = test_type
         
         # get normalization parameters
@@ -50,17 +53,21 @@ class EvalTransforms():
             ])
         self.transforms4label = v2.Resize(img_size, 
                                     interpolation=InterpolationMode.NEAREST)
-        
-        if test_type.startswith('roi'):
+        self.make_roi_crop = True
+        if test_type=='roi_aligned':
             self.crop_params = {'anchor': self._roi_crop_parameter(segmask1),
                                 'sample': self._roi_crop_parameter(segmask2)}
-        
+        elif crop_params != None:
+            self.crop_params = crop_params
+        else:
+            self.make_roi_crop = False
+            
     def __call__(self, img, img_name:str):
         ''' Apply transforms to anchor, sample and change mask. '''
         
         if img_name == 'label':
             img = self.label2tensor(img)/255
-            if self.test_type.startswith('ROI'):
+            if self.make_roi_crop:
                 p = self.crop_params['anchor']
                 img = v2.functional.crop(img, p[0],p[1],p[2],p[3])
             else:
@@ -69,7 +76,7 @@ class EvalTransforms():
         
         else: # anchor or sample image
             img = self.img2tensor(img)
-            if self.test_type.startswith('ROI'):
+            if self.make_roi_crop:
                 p = self.crop_params[img_name]
                 img = v2.functional.crop(img, p[0],p[1],p[2],p[3])
             else: img = self.centercrop(img)

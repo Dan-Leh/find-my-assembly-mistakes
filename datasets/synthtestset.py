@@ -1,11 +1,9 @@
 import os
 import json
-import random
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 import torch
-from torchvision.transforms import v2
 
 from utils.eval_transforms import EvalTransforms
 
@@ -18,7 +16,9 @@ class EvalDataset(Dataset):
         norm_type: str = 'imagenet',
         img_size: tuple = (256,256), 
         test_type: str = "",
-        ignore_0_change = True
+        ignore_0_change: bool = True,
+        path_to_clean_imgs: str = "",
+        dirty_img: str = ""
         ):
         '''
         Arguments:
@@ -28,12 +28,21 @@ class EvalDataset(Dataset):
             img_size (tuple of ints): height and width of images that are outputted
             test_type (str): whether we are testing for orientation difference, 
                 translation, scaling or roi cropping. 
+            ignore_0_change (bool): skip testing on image pairs that have no 
+                meaningful change as those have 0 IoU (saves time & compute)
+            path_to_clean_imgs (str): When evaluating lower quality images, this
+                gives the path to clean images of the same states & poses
+            dirty_img (str): which image should be dirty, either 'anchor', 'sample'
+                (in which case the other one is kept clean) or 'both'. Empty string
+                means we are not testing on dirty images
         '''
         self.norm_type = norm_type
         self.img_size = img_size
         self.test_type = test_type
         self.path_to_data, filename = os.path.split(data_list_filepath)
         self.determinstic_set = self._load_json(filename)  # paths to image pairs
+        self.make_roi_crops = True if data_list_filepath.endswith('w_crops.json') \
+                         else False
         if ignore_0_change:
             if type(self.determinstic_set[0]["n_differences"])==int:
                 no_change = 0
@@ -43,13 +52,30 @@ class EvalDataset(Dataset):
                 if self.determinstic_set[i]["n_differences"] == no_change:
                     self.determinstic_set.pop(i)
         
-        if test_type in ["orientation", "roi_aligned"]:
+        # decode where to load data from
+        if (test_type in ["orientation", "roi_aligned"] or self.make_roi_crops):
             self.id2indexdict = self._id2index() 
             # list containing the state of each image in set
             self.state_list = self._load_json('state_list.json') 
             # get the number of frames per sequence (used for indexing in state_list)
             seq_dir = os.path.join(self.path_to_data,"sequence0000")
             self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
+        
+        else:  # images are precropped and saved as pngs
+            self._decode_data_paths(dirty_img, path_to_clean_imgs)
+        
+    def _decode_data_paths(self, dirty_img:str, path_to_clean_imgs:str):
+        ''' If we are testing dirty images, take care of whether sample, reference
+        or both should contain corruptions '''
+        # default values:
+        self.path_to_anchors = os.path.join(self.path_to_data, "References")
+        self.path_to_samples = os.path.join(self.path_to_data, "Samples")
+        self.path_to_masks = os.path.join(self.path_to_data, "ChangeMasks")
+        if dirty_img == 'anchor':
+            self.path_to_samples = os.path.join(path_to_clean_imgs, "Samples")
+        elif dirty_img == 'sample':  # mask needs to correspond to anchor image
+            self.path_to_anchors = os.path.join(path_to_clean_imgs, "References")
+            self.path_to_masks = os.path.join(path_to_clean_imgs, "ChangeMask")
             
     def _load_json(self, name: str) -> list:
         ''' load json file with specified name from data directory '''
@@ -183,14 +209,19 @@ class EvalDataset(Dataset):
         
         return change_mask       
     
-    def _get_max_orientation_diff(self, quaternion_difference:float) -> float:
+    def _get_max_orientation_diff(self, nQD:float, more_bins:bool=False) -> float:
         ''' From the exact norm of quaternion difference value, extract the upper
         limit of the bin to which this orientation belongs. '''
         
-        orientation_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2, 1)}
-        for thresholds in orientation_thresholds.values():
-            if quaternion_difference >= thresholds[0] and \
-                                        quaternion_difference <= thresholds[1]:
+        if more_bins:
+            nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2,0.3),
+                              4:(0.3,0.4), 5:(0.4,0.5), 6:(0.5,0.6), 7:(0.6,0.7), 
+                              8:(0.7,0.8), 9:(0.8,0.9), 10:(0.9,1)}
+        else:
+            nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2, 1)}
+            
+        for thresholds in nqd_thresholds.values():
+            if nQD >= thresholds[0] and nQD <= thresholds[1]:
                 return thresholds[1]
         
     def __getitem__(self, idx:int):
@@ -214,7 +245,9 @@ class EvalDataset(Dataset):
         img_pair = self.determinstic_set[idx]
         
         # if orientation difference is the changing variable
-        if self.test_type == "orientation" or self.test_type == "roi_aligned":
+        if (self.test_type == "orientation" or 
+                self.test_type == "roi_aligned" or 
+                self.make_roi_crops):
             ref_seq, ref_frame = img_pair["A1"]
             sample_seq, sample_frame = img_pair["B2"]
             max_parts_diff = img_pair["n_differences"][1]
@@ -243,10 +276,15 @@ class EvalDataset(Dataset):
                                                 sample_seq, ref_frame, sample_frame) 
                 tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
                         self.norm_type, SegMaskImage1, SegMaskImage2)
+            elif self.make_roi_crops:
+                variable_of_interest = self._get_max_orientation_diff(
+                                        img_pair["quaternion_difference"], more_bins=True)
+                crop_params = {"anchor": img_pair["A1_crop"],
+                               "sample": img_pair["B2_crop"]}
+                tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
+                        self.norm_type, None, None, crop_params)
             else:
-                variable_of_interest = None
-                tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
-                                    self.norm_type, None, None)
+                raise ValueError(f'Invalid test type: {self.test_type}')
         
             # apply transforms
             anchor = tf(anchor, 'anchor')
@@ -263,9 +301,9 @@ class EvalDataset(Dataset):
                 if type(img_pair["n_differences"])!=int else img_pair["n_differences"] 
 
             # get path to images
-            path_anchor = os.path.join(self.path_to_data, "References", img_names)
-            path_sample = os.path.join(self.path_to_data, "Samples", img_names)
-            path_mask = os.path.join(self.path_to_data, "ChangeMasks", img_names)
+            path_anchor = os.path.join(self.path_to_anchors, img_names)
+            path_sample = os.path.join(self.path_to_samples, img_names)
+            path_mask = os.path.join(self.path_to_masks, img_names)
 
             # load images
             anchor = Image.open(path_anchor).convert("RGB")

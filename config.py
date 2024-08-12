@@ -122,13 +122,7 @@ def make_train_dirs(config_dict:dict) -> dict:
     
     If the experiment name already exists in the output directory, the name is
     changed by adding a number to the end. 
-    '''
-    # checkpoint directory    
-    if config_dict['save_ckpt']:
-        config_dict['checkpoint_dir'] = os.path.join(
-                config_dict['checkpoint_root'], config_dict['experiment_name'])
-        os.makedirs(config_dict['checkpoint_dir'], exist_ok=True)
-        
+    ''' 
     # output directory
     output_path = os.path.join(config_dict['output_root'], 
                                config_dict['experiment_name'])
@@ -142,6 +136,12 @@ def make_train_dirs(config_dict:dict) -> dict:
     os.makedirs(output_path)
     config_dict['output_dir'] = os.path.join(config_dict['output_root'], 
                                              config_dict['experiment_name'])
+    
+    # checkpoint directory    
+    if config_dict['save_ckpt']:
+        config_dict['checkpoint_dir'] = os.path.join(
+                config_dict['checkpoint_root'], config_dict['experiment_name'])
+        os.makedirs(config_dict['checkpoint_dir'], exist_ok=True)
     
     # visualization directory
     config_dict['vis_dir'] = os.path.join(config_dict['output_dir'], 'visualize')

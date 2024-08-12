@@ -10,11 +10,7 @@ from models.build_functions import build_model
 from utils.metric_tool import ConfuseMatrixMeter
 from utils.logger_tool import Logger
 from utils.utils import denormalize
-<<<<<<< HEAD
-from utils.plotter import make_numpy_grid, Score_tracker_test_set
-=======
 from utils.plotter import make_numpy_grid, TestScorePlotter
->>>>>>> VISION
 
 
 class CDEvaluator():
@@ -49,15 +45,9 @@ class CDEvaluator():
         # Instantiate classes to make & record the evaluation scores
         self.running_metric_micro = ConfuseMatrixMeter(n_class=2)
         self.running_metric_macro = ConfuseMatrixMeter(n_class=2)
-<<<<<<< HEAD
-        self.score_tracker_micro = Score_tracker_test_set(output_dir, 
-                                                self.changing_var, 'micro')
-        self.score_tracker_macro = Score_tracker_test_set(output_dir, 
-=======
         self.score_tracker_micro = TestScorePlotter(output_dir, 
                                                 self.changing_var, 'micro')
         self.score_tracker_macro = TestScorePlotter(output_dir, 
->>>>>>> VISION
                                                 self.changing_var, 'macro')
         
         self.batch_size = 1  # required for macro-averaging
