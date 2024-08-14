@@ -18,7 +18,8 @@ class EvalDataset(Dataset):
         test_type: str = "",
         ignore_0_change: bool = True,
         path_to_clean_imgs: str = "",
-        dirty_img: str = ""
+        dirty_img: str = "",
+        more_nqd_bins: bool=False
         ):
         '''
         Arguments:
@@ -35,10 +36,14 @@ class EvalDataset(Dataset):
             dirty_img (str): which image should be dirty, either 'anchor', 'sample'
                 (in which case the other one is kept clean) or 'both'. Empty string
                 means we are not testing on dirty images
+            more_nqd_bins (bool): if true, have plot the results using the 11 nQD ranges
+                from 0 to 1 nQD in incremenets of 0.1, else use the previous 4 bins: 
+                0, 0-0.1, 0.1-0.2 and 0.2-1
         '''
         self.norm_type = norm_type
         self.img_size = img_size
         self.test_type = test_type
+        self.more_nqd_bins = more_nqd_bins
         self.path_to_data, filename = os.path.split(data_list_filepath)
         self.determinstic_set = self._load_json(filename)  # paths to image pairs
         self.make_roi_crops = True if data_list_filepath.endswith('w_crops.json') \
@@ -75,7 +80,7 @@ class EvalDataset(Dataset):
             self.path_to_samples = os.path.join(path_to_clean_imgs, "Samples")
         elif dirty_img == 'sample':  # mask needs to correspond to anchor image
             self.path_to_anchors = os.path.join(path_to_clean_imgs, "References")
-            self.path_to_masks = os.path.join(path_to_clean_imgs, "ChangeMask")
+            self.path_to_masks = os.path.join(path_to_clean_imgs, "ChangeMasks")
             
     def _load_json(self, name: str) -> list:
         ''' load json file with specified name from data directory '''
@@ -209,11 +214,11 @@ class EvalDataset(Dataset):
         
         return change_mask       
     
-    def _get_max_orientation_diff(self, nQD:float, more_bins:bool=False) -> float:
+    def _get_max_orientation_diff(self, nQD:float) -> float:
         ''' From the exact norm of quaternion difference value, extract the upper
         limit of the bin to which this orientation belongs. '''
         
-        if more_bins:
+        if self.more_nqd_bins:
             nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2,0.3),
                               4:(0.3,0.4), 5:(0.4,0.5), 6:(0.5,0.6), 7:(0.6,0.7), 
                               8:(0.7,0.8), 9:(0.8,0.9), 10:(0.9,1)}
@@ -278,7 +283,7 @@ class EvalDataset(Dataset):
                         self.norm_type, SegMaskImage1, SegMaskImage2)
             elif self.make_roi_crops:
                 variable_of_interest = self._get_max_orientation_diff(
-                                        img_pair["quaternion_difference"], more_bins=True)
+                                        img_pair["quaternion_difference"])
                 crop_params = {"anchor": img_pair["A1_crop"],
                                "sample": img_pair["B2_crop"]}
                 tf = EvalTransforms(self.test_type, (0,0), self.img_size, 

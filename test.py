@@ -19,6 +19,7 @@ test_data_configuration = decode_test_sets(cfg.test_sets,
 set_name = test_data_configuration['set_name']
 test_type = test_data_configuration['test_type']
 data_path = test_data_configuration['data_path']
+more_nqd_bins = test_data_configuration['more_nqd_bins']
 
 for i in range(len(set_name)):
     
@@ -26,7 +27,8 @@ for i in range(len(set_name)):
     CDD_test = EvalDataset(data_list_filepath=data_path[i],
                             img_size=cfg.img_transforms['img_size'],
                             norm_type = cfg.img_transforms['normalization'],
-                            test_type = test_type[i].lower())
+                            test_type = test_type[i].lower(),
+                            more_nqd_bins = more_nqd_bins[i])
     dataloader = DataLoader(CDD_test, batch_size=1, shuffle=False, 
                             num_workers=cfg.num_workers, drop_last=True)
 

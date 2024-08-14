@@ -1,6 +1,8 @@
 #PBS -S /bin/bash
 #PBS -l select=1:ncpus=8:ngpus=1:gpu_type=v100:mem=32gb:dcloc=htc
 #PBS -N test_new_nqd_range
+#PBS -M dan.lehman@asml.com
+#PBS -m e
 
 source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 

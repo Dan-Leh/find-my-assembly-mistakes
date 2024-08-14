@@ -16,6 +16,9 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
                 varying orientation difference, or translation difference)
             'data_path': list of the path to each json file containing information
                 about all image pairs in the test set
+            'more_nqd_bins': if true, have plot the results using the 11 nQD ranges
+                from 0 to 1 nQD, else use the previous 4 bins: 0, 0-0.1, 0.1-0.2 
+                and 0.2-1
         '''
 
     eval_set_list = []
@@ -49,11 +52,13 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
         test_type_list = ['Orientation', 'Scale', 'Translation', 
                         'Missing', 'Present']
 
-    test_configuration = {'set_name': [], 'test_type': [], 'data_path': []}
+    test_configuration = {'set_name': [], 'test_type': [], 'data_path': [],
+                          'more_nqd_bins': []}
     # Extract all the test sets that we want to evaluate on
     for eval_set in eval_set_list:
         # Run evaluation script for every aspect/type that is tested for (eg. nQD)
-        for test_type in test_type_list:             
+        for test_type in test_type_list:      
+            new_bins = False  # default
             if test_type == 'Orientation':
                 data_list_filepath = os.path.join(data_root, set2dir_name[eval_set], 
                                                 "eval_rand_20k.json")
@@ -82,18 +87,20 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
                     # check if there is a json file containing crops:
                     if test_type == 'ROI':
                         try_path = os.path.join(data_root, set2dir_name[eval_set], 
-                                                "eval_rand_30k_w_crops.json")
+                                                "eval_rand_33k_w_crops.json")
                         if os.path.exists(try_path):
                             data_list_filepath = try_path
+                            new_bins = True
                         else: 
                             os.path.join(data_root, "Test_pairs", 
                                             eval_set+"_"+test_type, "pair_info.json")
                     else:
                         mispres = 'missing' if test_type.endswith('missing') else 'present'
                         try_path = os.path.join(data_root, set2dir_name[eval_set], 
-                                                f"eval_{mispres}_parts_30k_w_crops.json")
+                                                f"eval_{mispres}_parts_33k_w_crops.json")
                         if os.path.exists(try_path):
                             data_list_filepath = try_path
+                            new_bins = True
                         else: 
                             os.path.join(data_root, "Test_pairs", 
                                             eval_set+"_"+test_type, "pair_info.json")
@@ -101,5 +108,6 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
             test_configuration['set_name'].append(eval_set)
             test_configuration['test_type'].append(test_type)
             test_configuration['data_path'].append(data_list_filepath)
+            test_configuration['more_nqd_bins'].append(new_bins)
     
     return test_configuration
