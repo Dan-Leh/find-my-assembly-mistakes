@@ -8,7 +8,7 @@ source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 
 cd /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net
 
-for NAME in gca msa lca
+for NAME in lca #gca msa lca
 do
     python test.py \
     --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME'/config.yaml' \

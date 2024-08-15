@@ -19,12 +19,8 @@ if 'rand_background' in cfg.test_sets:
 
     
 data_root = "/shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData"
-set2dir_name = {"rand_background": "Val_states_v2_ROI_rand_bg"}
 
 dirty_img_runs = ['anchor', 'sample', 'both']
-
-clean_img_path = ("/shared/nl011006/res_ds_ml_restricted/dlehman/"
-                  "SyntheticData/Test_pairs/Val_states_v2_ROI")
 
 
 # Run evaluation script for all the specified test sets
@@ -32,10 +28,10 @@ for eval_set in eval_set_list:
     for dirty_img in dirty_img_runs:
         # Run evaluation script for every aspect/type that is tested for (eg. nQD)
         
-        test_name = 'Orientation_' + dirty_img + '_dirty'
+        test_name = 'ROI_' + dirty_img + '_dirty'
         if eval_set == 'rand_background':
-            data_list_filepath = os.path.join(data_root, "Test_pairs", 
-                                set2dir_name[eval_set], "pair_info.json")
+            data_list_filepath = "/shared/nl011006/res_ds_ml_restricted/dlehman/"+\
+                "SyntheticData/Val_states_v2/eval_rand_33k_w_bg_imgs_w_crops.json"
  
         print(f'Output directory name: {test_name}')
         
@@ -43,8 +39,7 @@ for eval_set in eval_set_list:
         CDD_test = EvalDataset(data_list_filepath=data_list_filepath,
                                 img_size=cfg.img_transforms['img_size'],
                                 norm_type=cfg.img_transforms['normalization'],
-                                test_type='roi',
-                                path_to_clean_imgs=clean_img_path,
+                                test_type='background',
                                 dirty_img=dirty_img)
         dataloader = DataLoader(CDD_test, batch_size=1, shuffle=False, 
                                 num_workers=cfg.num_workers, drop_last=True)

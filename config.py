@@ -238,7 +238,8 @@ def get_overwrite_arguments(parser, train:bool):
     parser.add_argument('--img_transforms/random_crop', type=str2bool, help="Whether to create random crops of anchor and sample images wherein the whole assembly object is still visible.")
     parser.add_argument('--img_transforms/max_translation', type=float, help="Maximum amount of random translation between the anchor and sample images, indicated as a fraction of the image size, i.e. 10% translation should be 0.1.")
     parser.add_argument('--img_transforms/rescale', type=float, help="The maximum scale ratio between anchor and sample image. Default should be 1 if images should be the same scale")
-    parser.add_argument('--img_transforms/normalization', type=str, help="According to which weights to normalize input images. Currently only supports 'imagenet'. ")
+    parser.add_argument('--img_transforms/normalization', type=str, help="According to which weights to normalize input images. Currently only supports 'imagenet'.")
+    parser.add_argument('--img_transforms/random_background', type=str2bool, help="Whether to randomize the background of each image with randomly chosen COCO images")
     
     # model architecture parameters
     parser.add_argument('--cyws/encoder', type=str, help="Which encoder to use. Options are resnet18, resnet34 and resnet50")

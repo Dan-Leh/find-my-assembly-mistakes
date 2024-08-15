@@ -8,6 +8,7 @@ import torch
 from typing import Union, Optional
 
 from utils.transforms import Transforms
+from utils.background_randomizer import replace_background
 
 class SyntheticChangeDataset(Dataset):
     """ Dataset for pairing two synthetic images & generating ground truth change mask """
@@ -18,7 +19,8 @@ class SyntheticChangeDataset(Dataset):
         orientation_thresholds: tuple = (0, 0.1),   
         parts_diff_thresholds: tuple = (0, 5),     
         preprocess: bool = False,                 
-        img_transforms: dict = {}
+        img_transforms: dict = {},
+        split: str = "train"
         ):
         '''
         Arguments:
@@ -31,6 +33,8 @@ class SyntheticChangeDataset(Dataset):
                                 of all states and orientation differences in dataset
             img_transforms (dict): a dictionary containing all the image 
                                 transforms from the config file
+            split (str): train, test or val. Only used for randomizing background images
+                as there is a separate list preallocated to each split.
         '''
         assert data_path != "", "Please enter a folder name when instantiating ChangeDataset"
         
@@ -45,6 +49,15 @@ class SyntheticChangeDataset(Dataset):
         self.data_list, self.n_sequences, self.n_frames = self._make_data_list()
         self.state_dict, self.state_list = self._state_table(preprocess)
         self.nqd_table = self._orientations_table(preprocess) 
+        
+        if img_transforms['random_background']:  # initialize vars for randomizing bg
+            self.randomize_background = True
+            self.bg_img_folder = f"/shared/nl011006/res_ds_ml_restricted/dlehman/COCO_Images"
+            self.bg_img_root = os.path.join(self.bg_img_folder, "unlabeled2017")
+            img_list_path = os.path.join(self.bg_img_folder, f"{split}_img_list.json")
+            with open(img_list_path, 'r') as f:
+                self.bg_img_list = json.load(f)
+            f.close()
     
     def _get_instance_info(self, sequence:int, frame:int) -> list:
         ''' Load instance segmentation label definitions from frame_data file. '''
@@ -281,6 +294,46 @@ class SyntheticChangeDataset(Dataset):
             
         return segmentations[0], segmentations[1]
     
+    def _randomize_image_background(self, anchor:torch.Tensor, 
+                        sample:torch.Tensor, sequences:list[int,int], 
+                        frame_ids:list[int,int], transforms:Transforms
+                        ) -> list[torch.Tensor, torch.Tensor]:
+        ''' Return assembly object pasted on random background.
+    
+        Arguments:
+            anchor (tensor): transformed anchor image
+            sample (tensor): transformed sample image
+            sequences (list): sequence number of anchor and sample images
+            frame_ids (list): background images to use
+            transforms (Transform class): the transform applied to image pairs
+                prior to becoming eg. ROI crops, used to transform the 
+                segmentation masks so they are aligned with the images to cut 
+                out the assembly object
+                            
+        Returns:
+            anchor (tensor): anchor image with randomized background
+            sample (tensor): sample image with randomized background
+        '''
+        segmentations = [None, None]
+        bg_imgs = [None, None]
+        bg_img_filenames = random.choices(self.bg_img_list, k=2)
+        for i, (sequence, frame) in enumerate(zip(sequences, frame_ids)):
+            # load background image
+            bg_img_path = os.path.join(self.bg_img_root, bg_img_filenames[i])
+            bg_imgs[i] = Image.open(bg_img_path)
+            
+            # load binary segmentation mask
+            label_filepath = os.path.join(self.path_to_data, f"sequence{str(sequence).zfill(4)}",
+                                fr"step{str(frame).zfill(4)}.camera.instance segmentation.png") 
+            segmask = Image.open(label_filepath).convert('L') # make the image grayscale
+            segmask = np.array(segmask)
+            segmentations[i] = Image.fromarray((segmask > 0).astype(np.uint8)*255)
+            
+        # cut out assembly object and add to new background
+        anchor, sample = replace_background((anchor, sample), segmentations,
+                        bg_imgs, transforms, self.img_transforms['img_size'])
+        return anchor, sample
+    
     def _load_binary_change_mask(self, sequence: int, frame_1: int, frame_2: int, 
                                  state_1: int, state_2: int) -> Image.Image:
         ''' Load the binary change mask of an image pair from the dataset.
@@ -454,6 +507,10 @@ class SyntheticChangeDataset(Dataset):
         image_a1 = tf(image_a1, 'anchor')
         image_b2 = tf(image_b2, 'sample')
         change_mask = tf(change_mask, 'label')
+        
+        if self.randomize_background:
+            image_a1, image_b2 = self._randomize_image_background(image_a1, image_b2,
+                                    [sequence_a, sequence_b], [frame_1, frame_b2], tf)
 
         # sanity checks
         assert (image_a1.shape == image_b2.shape), "Anchor and sample images do not have "\

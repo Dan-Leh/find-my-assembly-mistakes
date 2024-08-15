@@ -84,7 +84,7 @@ class Transforms(torch.nn.Module):
         
         if img_name == 'label': # transforms applied to label image
             img = self.label2tensor(img)/255
-            img = self._affine_transforms(img, img_name)
+            img = self._affine_transforms(img, 'anchor', 'nearest')
             top, left, height, width = self.crop_params['anchor']
             img = v2.functional.crop(img, top, left, height, width)
             img = torch.rot90(img, self.n_rot90, dims=[-2,-1])
@@ -92,11 +92,19 @@ class Transforms(torch.nn.Module):
             
         elif img_name == 'anchor' or img_name == 'sample': 
             img = self.img2tensor(img)
-            img = self._affine_transforms(img, img_name)
+            img = self._affine_transforms(img, img_name, 'bilinear')
             top, left, height, width = self.crop_params[img_name]
             img = v2.functional.crop(img, top, left, height, width)
             img = torch.rot90(img, self.n_rot90, dims=[-2,-1])
             img = self.transforms4imgs(img)
+            
+        elif img_name == 'segmask_sample':  # only when randomizing background
+            img = self.label2tensor(img)/255
+            img = self._affine_transforms(img, 'sample', 'bilinear')
+            top, left, height, width = self.crop_params['sample']
+            img = v2.functional.crop(img, top, left, height, width)
+            img = torch.rot90(img, self.n_rot90, dims=[-2,-1])
+            img = self.transforms4label(img)
             
         else:
             raise ValueError("Image name needs to be either 'anchor', "\
@@ -277,17 +285,19 @@ class Transforms(torch.nn.Module):
         
         return crop_params
         
-    def _affine_transforms(self, img:torch.Tensor, name:str) -> torch.Tensor:
+    def _affine_transforms(self, img:torch.Tensor, name:str,
+                           interp_mode: str) -> torch.Tensor:
         
-        if name == 'label': # use NEAREST
-            img = v2.functional.affine(img, angle=0, translate=[0,0], 
-                scale=self.rescale_params["anchor"], 
-                shear=self.shear_params["anchor"], 
-                interpolation=v2.InterpolationMode.NEAREST)
-        else: # use BILINEAR
-            img = v2.functional.affine(img, angle=0, translate=[0,0], 
-                scale=self.rescale_params[name], shear=self.shear_params[name], 
-                interpolation=v2.InterpolationMode.BILINEAR)
+        if interp_mode == 'nearest': 
+            interpolation = v2.InterpolationMode.NEAREST
+        elif interp_mode == 'bilinear':
+            interpolation = v2.InterpolationMode.BILINEAR
+
+        img = v2.functional.affine(img, angle=0, translate=[0,0], 
+                            scale=self.rescale_params[name], 
+                            shear=self.shear_params[name], 
+                            interpolation=interpolation)
+
         return img
           
     def _random_crop_params(self, segmask:np.ndarray) -> tuple[int,int,int,int]:

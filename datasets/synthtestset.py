@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 import torch
 
 from utils.eval_transforms import EvalTransforms
+from utils.background_randomizer import replace_background
 
 class EvalDataset(Dataset):
     ''' Provides synthetic image pairs & ground truth for testing. '''
@@ -17,7 +18,6 @@ class EvalDataset(Dataset):
         img_size: tuple = (256,256), 
         test_type: str = "",
         ignore_0_change: bool = True,
-        path_to_clean_imgs: str = "",
         dirty_img: str = "",
         more_nqd_bins: bool=False
         ):
@@ -31,12 +31,10 @@ class EvalDataset(Dataset):
                 translation, scaling or roi cropping. 
             ignore_0_change (bool): skip testing on image pairs that have no 
                 meaningful change as those have 0 IoU (saves time & compute)
-            path_to_clean_imgs (str): When evaluating lower quality images, this
-                gives the path to clean images of the same states & poses
             dirty_img (str): which image should be dirty, either 'anchor', 'sample'
                 (in which case the other one is kept clean) or 'both'. Empty string
                 means we are not testing on dirty images
-            more_nqd_bins (bool): if true, have plot the results using the 11 nQD ranges
+            more_nqd_bins (bool): if true, plot the results using the 11 nQD ranges
                 from 0 to 1 nQD in incremenets of 0.1, else use the previous 4 bins: 
                 0, 0-0.1, 0.1-0.2 and 0.2-1
         '''
@@ -65,22 +63,6 @@ class EvalDataset(Dataset):
             # get the number of frames per sequence (used for indexing in state_list)
             seq_dir = os.path.join(self.path_to_data,"sequence0000")
             self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
-        
-        else:  # images are precropped and saved as pngs
-            self._decode_data_paths(dirty_img, path_to_clean_imgs)
-        
-    def _decode_data_paths(self, dirty_img:str, path_to_clean_imgs:str):
-        ''' If we are testing dirty images, take care of whether sample, reference
-        or both should contain corruptions '''
-        # default values:
-        self.path_to_anchors = os.path.join(self.path_to_data, "References")
-        self.path_to_samples = os.path.join(self.path_to_data, "Samples")
-        self.path_to_masks = os.path.join(self.path_to_data, "ChangeMasks")
-        if dirty_img == 'anchor':
-            self.path_to_samples = os.path.join(path_to_clean_imgs, "Samples")
-        elif dirty_img == 'sample':  # mask needs to correspond to anchor image
-            self.path_to_anchors = os.path.join(path_to_clean_imgs, "References")
-            self.path_to_masks = os.path.join(path_to_clean_imgs, "ChangeMasks")
             
     def _load_json(self, name: str) -> list:
         ''' load json file with specified name from data directory '''
@@ -212,7 +194,52 @@ class EvalDataset(Dataset):
         change_mask = 255*(mask > 0).astype(np.uint8)  # make binary
         change_mask = Image.fromarray(change_mask, mode='L')  # grayscale
         
-        return change_mask       
+        return change_mask
+    
+    def _randomize_image_background(self, anchor:torch.Tensor, 
+                        sample:torch.Tensor, img_pair_info:dict, sequences:list[int,int], 
+                        frame_ids:list[int,int], transforms:EvalTransforms
+                        )-> list[torch.Tensor, torch.Tensor]:
+        ''' Add natural image background from COCO to assembly object images
+    
+        Arguments:
+            anchor (tensor): transformed anchor image
+            sample (tensor): transformed sample image
+            img_pair_info (dict): contains path to background image linked
+                to each paired sample and anchor image.
+            sequences (list): sequence number of anchor and sample images
+            frame_ids (list): background images to use
+            transforms (Transform class): the transform applied to image pairs
+                prior to becoming eg. ROI crops, used to transform the 
+                segmentation masks so they are aligned with the images to cut 
+                out the assembly object
+                            
+        Returns:
+            anchor (tensor): anchor image with randomized background
+            sample (tensor): sample image with randomized background
+        '''
+        segmentations = [None, None]
+        bg_imgs = [None, None]
+        bg_img_path = [img_pair_info["A1_bg_img"], 
+                       img_pair_info["B2_bg_img"]]
+        
+        for i, (sequence, frame) in enumerate(zip(sequences, frame_ids,)):
+            # load background image
+            bg_imgs[i] = Image.open(bg_img_path[i])
+            
+            # load binary segmentation mask    
+            label_filepath = os.path.join(self.path_to_data, f"sequence"+\
+                        f"{str(sequence).zfill(4)}", f"step{str(frame).zfill(4)}"+\
+                        fr".camera.instance segmentation.png") 
+            segmask = Image.open(label_filepath).convert('L') # make the image grayscale
+            segmask = np.array(segmask)
+            segmentations[i] = Image.fromarray((segmask > 0).astype(np.uint8)*255)
+            
+        # cut out assembly object and paste on new background
+        anchor, sample = replace_background((anchor, sample), segmentations,
+                        bg_imgs, transforms, self.img_size)
+        
+        return anchor, sample
     
     def _get_max_orientation_diff(self, nQD:float) -> float:
         ''' From the exact norm of quaternion difference value, extract the upper
@@ -253,19 +280,19 @@ class EvalDataset(Dataset):
         if (self.test_type == "orientation" or 
                 self.test_type == "roi_aligned" or 
                 self.make_roi_crops):
-            ref_seq, ref_frame = img_pair["A1"]
+            anchor_seq, anchor_frame = img_pair["A1"]
             sample_seq, sample_frame = img_pair["B2"]
             max_parts_diff = img_pair["n_differences"][1]
         
             # get states of both images
-            ref_state = self.state_list[ref_seq*self.n_frames+ref_frame]
+            anchor_state = self.state_list[anchor_seq*self.n_frames+anchor_frame]
             sample_state = self.state_list[sample_seq*self.n_frames+sample_frame]
             
             # load images and change mask
-            anchor = self._load_image(ref_seq, ref_frame)
+            anchor = self._load_image(anchor_seq, anchor_frame)
             sample = self._load_image(sample_seq, sample_frame)
-            change_mask = self._load_binary_change_mask(ref_seq, ref_frame, 
-                                            sample_frame, ref_state, sample_state)
+            change_mask = self._load_binary_change_mask(anchor_seq, anchor_frame, 
+                                            sample_frame, anchor_state, sample_state)
                         
             if self.test_type == "orientation":
                 variable_of_interest = self._get_max_orientation_diff(
@@ -277,8 +304,8 @@ class EvalDataset(Dataset):
                 variable_of_interest = self._get_max_orientation_diff(
                                                     img_pair["quaternion_difference"])
                 # load segmentation masks to make roi crops
-                SegMaskImage1, SegMaskImage2 = self._load_segmentation_masks(ref_seq, 
-                                                sample_seq, ref_frame, sample_frame) 
+                SegMaskImage1, SegMaskImage2 = self._load_segmentation_masks(anchor_seq, 
+                                                sample_seq, anchor_frame, sample_frame) 
                 tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
                         self.norm_type, SegMaskImage1, SegMaskImage2)
             elif self.make_roi_crops:
@@ -295,6 +322,10 @@ class EvalDataset(Dataset):
             anchor = tf(anchor, 'anchor')
             sample = tf(sample, 'sample')
             change_mask = tf(change_mask, 'label')
+            
+            if self.test_type == "background":
+                anchor, sample = self._randomize_image_background(anchor, sample, 
+                    img_pair, [anchor_seq, sample_seq], [anchor_frame, sample_frame], tf)
         
         else: # get saved image pairs with fixed translation or scale or ROI crop
             assert self.img_size[0] == self.img_size[1] == 256, \

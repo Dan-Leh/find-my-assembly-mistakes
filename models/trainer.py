@@ -30,13 +30,15 @@ class CDTrainer():
                 data_path=args.train_dir,
                 orientation_thresholds=args.orientation_thresholds, 
                 parts_diff_thresholds=args.parts_diff_thresholds, 
-                img_transforms=args.img_transforms
+                img_transforms=args.img_transforms,
+                split='train'
                 ),
             'val': SyntheticChangeDataset(
                 data_path=args.val_dir,
                 orientation_thresholds=args.orientation_thresholds,
                 parts_diff_thresholds=args.parts_diff_thresholds, 
-                img_transforms=remove_train_augmentations(args.img_transforms)
+                img_transforms=remove_train_augmentations(args.img_transforms),
+                split='val'
                 )
         }
 
