@@ -1,18 +1,16 @@
 import torch
 import numpy as np
 from PIL import Image
-from .transforms import Transforms
 from torchvision.transforms import v2
 from torchvision.transforms import InterpolationMode
 
 norm_mean = [0.485, 0.456, 0.406]
 norm_std = [0.229,0.224,0.225]
 
-def randomize_background(imgs:tuple[torch.Tensor, torch.Tensor], 
-                         segmasks:list[np.ndarray, np.ndarray], 
-                         bg_imgs:list[Image.Image, Image.Image], 
-                         prev_tf:Transforms, 
-                         img_size:tuple) -> list[torch.Tensor, torch.Tensor]:
+def replace_background(imgs:tuple[torch.Tensor, torch.Tensor], 
+                    segmasks:list[np.ndarray, np.ndarray], 
+                    bg_imgs:list[Image.Image, Image.Image], 
+                    prev_tf, img_size:tuple) -> list[torch.Tensor, torch.Tensor]:
     ''' Return assembly object pasted on random background.
     
     Arguments:
