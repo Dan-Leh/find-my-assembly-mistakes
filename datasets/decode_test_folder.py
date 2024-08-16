@@ -46,8 +46,6 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
 
     if roi_crop:  # whether to test on ROI crops or full images
         test_type_list = ['ROI', 'ROI_missing', 'ROI_present']
-        convert_test_type = {'ROI': 'Orientation', 'ROI_missing': 'Missing', 
-                            'ROI_present': 'Present'}
     else:
         test_type_list = ['Orientation', 'Scale', 'Translation', 
                         'Missing', 'Present']

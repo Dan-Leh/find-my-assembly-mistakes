@@ -42,6 +42,7 @@ class EvalDataset(Dataset):
         self.img_size = img_size
         self.test_type = test_type
         self.more_nqd_bins = more_nqd_bins
+        self.dirty_img = dirty_img
         self.path_to_data, filename = os.path.split(data_list_filepath)
         self.determinstic_set = self._load_json(filename)  # paths to image pairs
         self.make_roi_crops = True if data_list_filepath.endswith('w_crops.json') \
@@ -218,26 +219,30 @@ class EvalDataset(Dataset):
             anchor (tensor): anchor image with randomized background
             sample (tensor): sample image with randomized background
         '''
-        segmentations = [None, None]
-        bg_imgs = [None, None]
-        bg_img_path = [img_pair_info["A1_bg_img"], 
-                       img_pair_info["B2_bg_img"]]
         
-        for i, (sequence, frame) in enumerate(zip(sequences, frame_ids,)):
-            # load background image
-            bg_imgs[i] = Image.open(bg_img_path[i])
+        def get_segmentation_mask(sequence, frame):
+            ''' Return binary segmentation of assemnbly object '''
             
-            # load binary segmentation mask    
-            label_filepath = os.path.join(self.path_to_data, f"sequence"+\
-                        f"{str(sequence).zfill(4)}", f"step{str(frame).zfill(4)}"+\
-                        fr".camera.instance segmentation.png") 
-            segmask = Image.open(label_filepath).convert('L') # make the image grayscale
+            label_filepath = os.path.join(self.path_to_data, 
+                    f"sequence{str(sequence).zfill(4)}", 
+                    fr"step{str(frame).zfill(4)}.camera.instance segmentation.png")
+            segmask = Image.open(label_filepath).convert('L')  # grayscale
             segmask = np.array(segmask)
-            segmentations[i] = Image.fromarray((segmask > 0).astype(np.uint8)*255)
+            segmask = Image.fromarray((segmask > 0).astype(np.uint8)*255)
             
-        # cut out assembly object and paste on new background
-        anchor, sample = replace_background((anchor, sample), segmentations,
-                        bg_imgs, transforms, self.img_size)
+            return segmask
+            
+        # replace background where specified
+        if self.dirty_img == 'anchor' or self.dirty_img == 'both':
+            bg_img = Image.open(img_pair_info["A1_bg_img"])
+            segmask = get_segmentation_mask(sequences[0], frame_ids[0])
+            anchor = replace_background(anchor, segmask, bg_img, 
+                                        transforms, self.img_size, "anchor")
+        if self.dirty_img == 'sample' or self.dirty_img == 'both':
+            bg_img = Image.open(img_pair_info["B2_bg_img"])
+            segmask = get_segmentation_mask(sequences[1], frame_ids[1])
+            sample = replace_background(sample, segmask, bg_img, 
+                                        transforms, self.img_size, "sample")
         
         return anchor, sample
     

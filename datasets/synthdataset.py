@@ -314,24 +314,27 @@ class SyntheticChangeDataset(Dataset):
             anchor (tensor): anchor image with randomized background
             sample (tensor): sample image with randomized background
         '''
-        segmentations = [None, None]
-        bg_imgs = [None, None]
-        bg_img_filenames = random.choices(self.bg_img_list, k=2)
+        # for anchor and sample image 
         for i, (sequence, frame) in enumerate(zip(sequences, frame_ids)):
             # load background image
-            bg_img_path = os.path.join(self.bg_img_root, bg_img_filenames[i])
-            bg_imgs[i] = Image.open(bg_img_path)
+            bg_img_filenames = random.choice(self.bg_img_list)
+            bg_img_path = os.path.join(self.bg_img_root, bg_img_filenames)
+            bg_img = Image.open(bg_img_path)
             
             # load binary segmentation mask
             label_filepath = os.path.join(self.path_to_data, f"sequence{str(sequence).zfill(4)}",
                                 fr"step{str(frame).zfill(4)}.camera.instance segmentation.png") 
             segmask = Image.open(label_filepath).convert('L') # make the image grayscale
             segmask = np.array(segmask)
-            segmentations[i] = Image.fromarray((segmask > 0).astype(np.uint8)*255)
+            segmask = Image.fromarray((segmask > 0).astype(np.uint8)*255)
             
-        # cut out assembly object and add to new background
-        anchor, sample = replace_background((anchor, sample), segmentations,
-                        bg_imgs, transforms, self.img_transforms['img_size'])
+            # cut out assembly object and add to new background
+            if i == 0:  # anchor image
+                anchor = replace_background(anchor, segmask, bg_img, transforms, 
+                                            self.img_transforms['img_size'], 'anchor')
+            elif i == 1:  # anchor image
+                sample = replace_background(sample, segmask, bg_img, transforms, 
+                                            self.img_transforms['img_size'], 'sample')
         return anchor, sample
     
     def _load_binary_change_mask(self, sequence: int, frame_1: int, frame_2: int, 
