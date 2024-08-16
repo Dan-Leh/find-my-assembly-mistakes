@@ -1,0 +1,22 @@
+/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config.py:80: UserWarning: The given argument "test_sets" is not in the config file
+  warnings.warn(f"The given argument \"{arg}\" is not in the config file")
+/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config.py:80: UserWarning: The given argument "img_transforms/random_background" is not in the config file
+  warnings.warn(f"The given argument \"{arg}\" is not in the config file")
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)
+/hpc/data/hpc-smc-internships/dlehman/python_envs/new/lib/python3.12/site-packages/torch/nn/modules/module.py:1511: UserWarning: Implicit dimension choice for softmax has been deprecated. Change the call to include dim=X as an argument.
+  return self._call_impl(*args, **kwargs)

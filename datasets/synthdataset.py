@@ -8,6 +8,7 @@ import torch
 from typing import Union, Optional
 
 from utils.transforms import Transforms
+from utils.fda import FourierDomainAdaptation
 from utils.background_randomizer import replace_background
 
 class SyntheticChangeDataset(Dataset):
@@ -15,29 +16,30 @@ class SyntheticChangeDataset(Dataset):
     
     def __init__(
         self,
-        data_path: str = "",
+        data_path: str,
+        img_transforms: dict,
+        fda_config: dict,
         orientation_thresholds: tuple = (0, 0.1),   
-        parts_diff_thresholds: tuple = (0, 5),     
+        parts_diff_thresholds: tuple = (1, 6),
         preprocess: bool = False,                 
-        img_transforms: dict = {},
-        split: str = "train"
+        split: str = "train",
         ):
         '''
         Arguments:
             data_path (string): path to the folder containing the dataset
+            img_transforms (dict): a dictionary containing all the image 
+                    transforms from the config file
+            fda_config (dict): configuration parameters for fourier domain adaptation, 
+                including fraction of images that should receive fda
             orientation_thresholds (tuple): the minimum & maximum nQD (norm of quaternion 
                                             differences) between two images in a pair
             parts_diff_thresholds (tuple): the minimum & maximum number of different
                                            parts between two images in a pair
             preprocess (bool): if True, run preprocessing functions, i.e. save list 
                                 of all states and orientation differences in dataset
-            img_transforms (dict): a dictionary containing all the image 
-                                transforms from the config file
             split (str): train, test or val. Only used for randomizing background images
                 as there is a separate list preallocated to each split.
         '''
-        assert data_path != "", "Please enter a folder name when instantiating ChangeDataset"
-        
         # make input variables class-wide
         self.orientation_thresholds = orientation_thresholds
         self.parts_diff_thresholds = parts_diff_thresholds
@@ -58,6 +60,14 @@ class SyntheticChangeDataset(Dataset):
             with open(img_list_path, 'r') as f:
                 self.bg_img_list = json.load(f)
             f.close()
+        else: 
+            self.randomize_background = False
+            
+        # initialize fda:
+        if fda_config['frac_imgs_w_fda'] > 0:            
+            self.fda = FourierDomainAdaptation(fda_config, self.img_transforms['img_size'])
+        else: 
+            self.fda = None
     
     def _get_instance_info(self, sequence:int, frame:int) -> list:
         ''' Load instance segmentation label definitions from frame_data file. '''
@@ -504,7 +514,7 @@ class SyntheticChangeDataset(Dataset):
         # instantiate transforms so that the same transforms are applied to all images
         seg_mask_img_1, seg_mask_img_2 = self._load_segmentation_masks(sequence_a, 
                                                             sequence_b, frame_1, frame_a2) 
-        tf = Transforms(seg_mask_img_1, seg_mask_img_2, self.img_transforms)
+        tf = Transforms(seg_mask_img_1, seg_mask_img_2, self.img_transforms, self.fda)
         
         # apply transforms
         image_a1 = tf(image_a1, 'anchor')
