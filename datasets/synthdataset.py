@@ -18,7 +18,7 @@ class SyntheticChangeDataset(Dataset):
         self,
         data_path: str,
         img_transforms: dict,
-        fda_config: dict,
+        fda_config: dict = {},
         orientation_thresholds: tuple = (0, 0.1),   
         parts_diff_thresholds: tuple = (1, 6),
         preprocess: bool = False,                 
@@ -64,7 +64,7 @@ class SyntheticChangeDataset(Dataset):
             self.randomize_background = False
             
         # initialize fda:
-        if fda_config['frac_imgs_w_fda'] > 0:            
+        if split == 'train' and fda_config['frac_imgs_w_fda'] > 0:            
             self.fda = FourierDomainAdaptation(fda_config, self.img_transforms['img_size'])
         else: 
             self.fda = None

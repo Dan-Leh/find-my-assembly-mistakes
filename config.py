@@ -181,7 +181,7 @@ def get_overwrite_arguments(parser, train:bool):
 
     parser.add_argument('--experiment_name', type=str, help="Name used for creating checkpoint and 'results' directory")
 
-    if train:
+    if train:  # these config arguments are only relevant during training
         parser.add_argument('--train_dir', type=str, help="The directory containing all the training data")
         parser.add_argument('--val_dir', type=str, help="The directory containing all the validation data")
         parser.add_argument('--checkpoint_root', type=str, help="Checkpoint dir will be created by adding folder with experiment name")
@@ -189,7 +189,7 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--resume_ckpt_path', type=str, help="If not an empty string, training is resumed with weights loaded from the given checkpoint path")
         parser.add_argument('--resume_results_dir', type=str, help="The directory of the results of the model from which we are resuming training, used so that the resumed training plots its loss curve in the same image")
 
-            # data details
+        # data details
         parser.add_argument('--orientation_thresholds', nargs=2, type=float, help="The minimum and maximum norm of quaternion difference between anchor and sample images")
         parser.add_argument('--parts_diff_thresholds', nargs=2, type=int, help="The minimum and maximum amount of parts that should differ between anchor and sample images (amount of change)")
 
@@ -220,6 +220,11 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--img_transforms/g_sigma_l', type=float, help="Minimum standard deviation that can be chosen for blurring kernel.")
         parser.add_argument('--img_transforms/gradually_augment', type=str2bool, help="If true, start with little shear and color-based augmentation (brightness, contrast, saturation, hue, g_sigma_h) & gradually increase values proportionally to epoch till max epoch is reached. If false, keep values constant.")
 
+        # Forier Domain Adaptation
+        parser.add_argument('--fda/beta_min', type=float, help="The minimum 'width' of low frequency information to copy from the fft of a target domain image onto the source domain image, expressed as a fraction of the total image height/width.")
+        parser.add_argument('--fda/beta_max', type=float, help="The maximum 'width' of low frequency information to copy from the fft of a target domain image onto the source domain image, expressed as a fraction of the total image height/width.")
+        parser.add_argument('--fda/frac_imgs_w_fda', type=float, help="The fraction of images that should have any kind of Fourier Domain Adaptation (to allow for training on mix of source and target domains). 0 means no fda, 1 means fda on every image.")
+        
     else: # test
         parser.add_argument('--checkpoint_dir', type=str, help="Only used during testing, to point to directory containing the model checkpoints")
         parser.add_argument('--test_sets', type=str, help="Names of the test sets to evaluate model on.")

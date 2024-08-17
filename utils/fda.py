@@ -14,37 +14,43 @@ class FourierDomainAdaptation():
         self.img_size = img_size
         
         self.beta_min = fda_config['beta_min']
-        self.beta_max = fda_config['beta_min']
+        self.beta_max = fda_config['beta_max']
         self.frac_imgs_w_fda = fda_config['frac_imgs_w_fda']
         
         target_img_root = "/shared/nl011006/res_ds_ml_restricted/TimSchoonbeek"+\
-                                                    "/industreal_cont/train_assy"
-        self.path_to_trg_imgs = os.path.join(target_img_root, "images")
-        
-        path_to_labels = os.path.join(target_img_root, 'labels.json')
-        
-        with open(path_to_labels, 'r') as fp:
-            trg_img_info = json.load(fp) # dict_keys(['images', 'labels', 'bbox', 'recs', 'visibility'])
-        fp.close()
-        
-        # filter out images without bounding boxes & with bad visibility
-        bbox_not_null = [type(x) == list for x in trg_img_info['bbox']]
-        bbox_not_null = np.array(bbox_not_null)
-        visibility = np.array(trg_img_info['visibility'])
-        good_visibility = (visibility == 3) | (visibility == 2)
-        filter = bbox_not_null & good_visibility
-        self.img_list = np.array(trg_img_info['images'])[filter]
-        self.bboxes = np.array(trg_img_info['bbox'], dtype=object)[filter]
-        
-        self.datalength = len(self.img_list)
+                                                                "/industreal_cont"
+
+        # make a list of all target images and their bounding boxes
+        self.trg_img_paths = []
+        self.bboxes = []
+        for folder_name in ['train_assy', 'train_main']:
+            
+            path_to_folder = os.path.join(target_img_root, folder_name)
+            path_to_imgs = os.path.join(path_to_folder, "images")
+            path_to_labels = os.path.join(path_to_folder, 'labels.json')
+            
+            # open label data about all images in folder
+            with open(path_to_labels, 'r') as fp:
+                img_info = json.load(fp) 
+                # contains keys: ['images','labels','bbox','recs','visibility']
+            fp.close()
+            
+            # filter out images without bounding box & too much occlusion
+            for i in range(len(img_info['visibility'])):
+                if img_info['visibility'][i]==3 \
+                                and img_info['bbox'][i]!=None:
+                    path2img = os.path.join(path_to_imgs,img_info['images'][i])
+                    self.trg_img_paths.append(path2img)
+                    self.bboxes.append(img_info['bbox'][i])
+                        
+            self.datalength = len(self.trg_img_paths)
             
     def _get_target_image(self) -> torch.Tensor:
         ''' Load a real-world image and return its roi crop. '''
         
         # choose and load a random image
         rnd_idx = random.randrange(0, self.datalength)
-        img_id = self.img_list[rnd_idx]
-        path_to_img = os.path.join(self.path_to_trg_imgs, img_id)
+        path_to_img = self.trg_img_paths[rnd_idx]
         img = Image.open(path_to_img).convert("RGB")
         
         # make roi crop
@@ -92,7 +98,7 @@ def low_freq_mutate( amp_src, amp_trg, L=0.1 ): # 3 x h x w
     return amp_src
 
 def FDA_source_to_target(src_img, trg_img, L=0.1):
-    # exchange magnitude
+    ''' Exchange magnitude of low frequencies from trg to src'''
     # input: src_img, trg_img
 
     # get fft of both source and target
@@ -104,17 +110,17 @@ def FDA_source_to_target(src_img, trg_img, L=0.1):
     amp_trg, pha_trg = extract_ampl_phase( fft_trg)
 
     # replace the low frequency amplitude part of source with that from target
-    amp_src_ = low_freq_mutate( amp_src, amp_trg, L=L )
+    amp_src_ = low_freq_mutate( amp_src.clone(), amp_trg, L=L )
 
     # recompose fft of source
-    fft_src_ = torch.zeros( fft_src.size(), dtype=torch.float )
+    # fft_src_ = torch.zeros( fft_src.size(), dtype=torch.float )
     fft_src_ = (torch.cos(pha_src) + 1j*torch.sin(pha_src)) * amp_src_
 
     # get the recomposed image: source content, target style
     src_in_trg = torch.fft.ifft2( fft_src_ )
 
     # get rid of complex numbers caused by numerican inaccuracies
-    src_in_trg = torch.abs(src_in_trg)  
+    src_in_trg = torch.abs(src_in_trg).clamp_(0,1)
     
     return src_in_trg
 
@@ -141,8 +147,8 @@ def FDA_source_to_target(src_img, trg_img, L=0.1):
 #     # exchange magnitude
 #     # input: src_img, trg_img
 
-#     src_img_np = src_img #.cpu().numpy()
-#     trg_img_np = trg_img #.cpu().numpy()
+#     src_img_np = src_img.numpy()
+#     trg_img_np = trg_img.numpy()
 
 #     # get fft of both source and target
 #     fft_src_np = np.fft.fft2( src_img_np, axes=(-2, -1) )

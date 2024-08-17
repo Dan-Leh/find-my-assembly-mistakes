@@ -31,7 +31,8 @@ class CDTrainer():
                 orientation_thresholds=args.orientation_thresholds, 
                 parts_diff_thresholds=args.parts_diff_thresholds, 
                 img_transforms=args.img_transforms,
-                split='train'
+                fda_config=args.fda,
+                split='train',
                 ),
             'val': SyntheticChangeDataset(
                 data_path=args.val_dir,
@@ -114,9 +115,9 @@ class CDTrainer():
         self.net.load_state_dict(checkpoint['model_state_dict'])
         self.net.to(self.device)
         
-        # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        # self.lr_scheduler.load_state_dict(
-            # checkpoint['exp_lr_scheduler_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.lr_scheduler.load_state_dict(
+            checkpoint['exp_lr_scheduler_state_dict'])
 
         # update some states
         self.epoch_to_start = checkpoint['epoch_id'] + 1
