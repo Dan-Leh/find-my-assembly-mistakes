@@ -1,3 +1,6 @@
+''' This file has been taken from the code of "Remote Sensing Image Change Detection with Transformers": 
+https://github.com/justchenhao/BIT_CD.git '''
+
 import sys
 import time
 
