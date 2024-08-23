@@ -1,0 +1,87 @@
+# file paths
+train_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Train_states_v2
+val_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Val_states_v2
+checkpoint_root: /hpc/scratch/dlehman/CD_checkpoints
+
+output_root: /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results
+experiment_name: train_config
+
+# change parameters
+orientation_thresholds:
+- 0.0
+- 0.1
+parts_diff_thresholds:
+- 1
+- 6
+
+# learning parameters
+loss: ce
+optimizer: adam
+batch_size: 64
+
+lr: 1.0e-05
+warmup_epochs: 15
+lr_policy: cosine
+T_0: 300
+T_mult: 2
+init_type: kaiming
+max_epochs: 315
+
+# hardware
+gpu: true
+num_workers: 8
+
+# to resume training
+resume_ckpt_path: ''
+resume_results_dir: ''
+
+# logging parameters
+log_iter: 50
+save_fig_iter: 200
+save_ckpt: True
+
+cyws:  # model architecture parameters
+  attention: gca
+  coam_layer_data:
+  - 3
+  - - 512
+    - 256
+    - 128
+  - - 128
+    - 64
+    - 32
+  decoder_attn_type: scse
+  encoder: resnet34
+  kernel_sizes:
+  - 5
+  - 7
+  - 11
+  pretrained_encoder: true
+  self_attention: linear
+  n_MSA_layers: 1
+  n_SA_heads: 8
+
+img_transforms:
+  img_size:
+    - 256
+    - 256
+  normalization: imagenet
+  # geometric transforms
+  ROI_crops: true
+  center_roi: false
+  random_crop: false
+  max_translation: 0
+  rescale: 1
+  rotation: true
+  shear: 0
+  hflip_probability: 0.5
+  vflip_probability: 0.2
+  # photometric transforms
+  brightness: 0.5
+  contrast: 0.5
+  saturation: 0.5
+  hue: 0.1
+  g_kernel_size: 5
+  g_sigma_h: 1
+  g_sigma_l: 0.01
+  gradually_augment: True
