@@ -55,7 +55,7 @@ def get_scheduler(optimizer, args):
     return scheduler
 
 
-def build_model(args, init_gain=0.02, gpu=False, train=True):
+def build_model(args, train=True):
     ''' Return model with initialized and/or pretrained weights. '''
     
     # instantiate model

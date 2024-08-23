@@ -40,7 +40,8 @@ for eval_set in eval_set_list:
                                 img_size=cfg.img_transforms['img_size'],
                                 norm_type=cfg.img_transforms['normalization'],
                                 test_type='background',
-                                dirty_img=dirty_img)
+                                dirty_img=dirty_img,
+                                more_nqd_bins=True)
         dataloader = DataLoader(CDD_test, batch_size=1, shuffle=False, 
                                 num_workers=cfg.num_workers, drop_last=True)
 
