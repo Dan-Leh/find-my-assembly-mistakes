@@ -1,3 +1,7 @@
+
+''' This file was taken from 'LoFTR: Detector-Free Local Feature Matching with Transformers':
+https://github.com/zju3dv/LoFTR.git '''
+
 """
 Linear Transformer proposed in "Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention"
 Modified from: https://github.com/idiap/fast-transformers/blob/master/fast_transformers/attention/linear_attention.py

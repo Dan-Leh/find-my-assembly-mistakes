@@ -1,3 +1,7 @@
+''' The code in this file has been adapted from "Remote Sensing Image Change Detection with Transformers": 
+https://github.com/justchenhao/BIT_CD.git '''
+
+
 import torch.optim as optim
 from torch.optim import lr_scheduler
 from models.network.cyws import CYWS

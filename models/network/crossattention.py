@@ -1,3 +1,6 @@
+''' This code was adapted from and inspired by 'The Change You Want to See':
+https://github.com/ragavsachdeva/The-Change-You-Want-to-See.git'''
+
 import torch
 import torch.nn as nn
 from einops import rearrange
