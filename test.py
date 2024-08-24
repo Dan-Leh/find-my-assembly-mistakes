@@ -1,7 +1,5 @@
 import os
 from torch.utils.data import DataLoader
-# import torch.multiprocessing
-# torch.multiprocessing.set_sharing_strategy('file_system')
 
 from datasets.synthtestset import EvalDataset
 from config import read_config
