@@ -16,7 +16,7 @@ class RealChangeDataset(Dataset):
             ROI (bool):  whether to create region-of-interest crops
             img_tf (dict):  dictionary containing values for the following 
                         image transforms, i.e. keys of the dict: 'img_size', 
-                        'normalization' and 'ROI_crops'
+                        'normalization'
         '''
         self.path_to_data = data_path
         self.ROI = ROI
@@ -30,7 +30,7 @@ class RealChangeDataset(Dataset):
                 self.pairs_info.append({
                     'sample': os.path.join(data_path, category, img),  # real img
                     'anchor': os.path.join('/shared/nl011006/res_ds_ml_restricted'\
-                        '/dlehman', labels[img]['reference']),  # synthetic anchor
+                        '/dlehman', labels[img]['anchor']),  # synthetic anchor
                     'bbox': labels[img]['bbox'],
                     'category': labels[img]['category']
                 })              
@@ -61,28 +61,20 @@ class RealChangeDataset(Dataset):
 
         # crop according to bounding box
         if self.ROI: 
-            real_img = real_img.crop((bbox[0], bbox[1], bbox[0]+
-                                      bbox[2], bbox[1]+bbox[3]))
+            real_img = real_img.crop((bbox[0], bbox[1], bbox[0]+bbox[2], 
+                                                        bbox[1]+bbox[3]))
         
         # load segmentation mask of anchor, to use for ROI cropping
         segmask_path = anchor_img_path.replace('.png', '.instance segmentation.png')
         segmask = np.array(Image.open(segmask_path).convert('L'))  # grayscale
         segmask = (segmask > 0).astype(np.uint8)
         
-        tf = EvalTransforms(segmask_anchor=segmask, 
-                                segmask_sample=segmask, real_sample=True,
-                                aug_cfg = {
-                                    'img_size': self.img_tf["img_size"],
-                                    'random_crop': False, 
-                                    'normalization': self.img_rf['normalization'],
-                                    'max_translation': 0,
-                                    'rescale': 1,
-                                    'ROI_crops': self.ROI,
-                                    'center_roi': True    
-                                }
-                            )
+        tf = EvalTransforms(test_type='roi_aligned', old_size=(0,0), 
+                            img_size=self.img_tf['img_size'], 
+                            norm_type=self.img_tf['normalization'],
+                            segmask1=segmask, segmask2=segmask)
         
         anchor_img = tf(anchor_img, 'anchor')
-        real_img = tf(real_img, 'sample')
+        real_img = tf(real_img, 'sample', real_img=True)
             
         return anchor_img, real_img, img_info['category']

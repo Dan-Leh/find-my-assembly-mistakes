@@ -1,11 +1,9 @@
 import os
 import json
-import random
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 import torch
-from torchvision.transforms import v2
 
 from utils.eval_transforms import EvalTransforms
 
@@ -18,7 +16,7 @@ class EvalDataset(Dataset):
         norm_type: str = 'imagenet',
         img_size: tuple = (256,256), 
         test_type: str = "",
-        ignore_0_change = True
+        ignore_0_change: bool = True,
         ):
         '''
         Arguments:
@@ -28,12 +26,15 @@ class EvalDataset(Dataset):
             img_size (tuple of ints): height and width of images that are outputted
             test_type (str): whether we are testing for orientation difference, 
                 translation, scaling or roi cropping. 
+            ignore_0_change (bool): skip testing on image pairs that have no 
+                meaningful change as those have 0 IoU (saves time & compute)
         '''
         self.norm_type = norm_type
         self.img_size = img_size
         self.test_type = test_type
         self.path_to_data, filename = os.path.split(data_list_filepath)
         self.determinstic_set = self._load_json(filename)  # paths to image pairs
+
         if ignore_0_change:
             if type(self.determinstic_set[0]["n_differences"])==int:
                 no_change = 0
@@ -43,13 +44,12 @@ class EvalDataset(Dataset):
                 if self.determinstic_set[i]["n_differences"] == no_change:
                     self.determinstic_set.pop(i)
         
-        if test_type in ["orientation", "roi_aligned"]:
-            self.id2indexdict = self._id2index() 
-            # list containing the state of each image in set
-            self.state_list = self._load_json('state_list.json') 
-            # get the number of frames per sequence (used for indexing in state_list)
-            seq_dir = os.path.join(self.path_to_data,"sequence0000")
-            self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
+        self.id2indexdict = self._id2index() 
+        # list containing the state of each image in set
+        self.state_list = self._load_json('state_list.json') 
+        # get the number of frames per sequence (used for indexing in state_list)
+        seq_dir = os.path.join(self.path_to_data,"sequence0000")
+        self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
             
     def _load_json(self, name: str) -> list:
         ''' load json file with specified name from data directory '''
@@ -181,25 +181,25 @@ class EvalDataset(Dataset):
         change_mask = 255*(mask > 0).astype(np.uint8)  # make binary
         change_mask = Image.fromarray(change_mask, mode='L')  # grayscale
         
-        return change_mask       
-    
-    def _get_max_orientation_diff(self, quaternion_difference:float) -> float:
+        return change_mask
+        
+    def _get_max_orientation_diff(self, nQD:float) -> float:
         ''' From the exact norm of quaternion difference value, extract the upper
         limit of the bin to which this orientation belongs. '''
         
-        orientation_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2, 1)}
-        for thresholds in orientation_thresholds.values():
-            if quaternion_difference >= thresholds[0] and \
-                                        quaternion_difference <= thresholds[1]:
+        nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2,0.3),
+                            4:(0.3,0.4), 5:(0.4,0.5), 6:(0.5,0.6), 7:(0.6,0.7), 
+                            8:(0.7,0.8), 9:(0.8,0.9), 10:(0.9,1)}
+            
+        for thresholds in nqd_thresholds.values():
+            if nQD >= thresholds[0] and nQD <= thresholds[1]:
                 return thresholds[1]
         
     def __getitem__(self, idx:int):
         ''' Determinstically go through dataset & return pairs with label. 
         
-        If self.test_type is eg. translation, scaling, or roi cropping, random 
-        augmentations have been applied and image pairs have been saved with them. 
-        Else,  data_list_filepath contains the paths to deterministic iamge pairs
-        that are loaded from dataset iwithout applying any randomization.
+        The crop parameters are rendered deterministic by being saved in the 
+        json file in which all the image pairs are defined.
         
         Returns:
             anchor (pil Image):
@@ -213,78 +213,30 @@ class EvalDataset(Dataset):
         # get image pair coordinates
         img_pair = self.determinstic_set[idx]
         
-        # if orientation difference is the changing variable
-        if self.test_type == "orientation" or self.test_type == "roi_aligned":
-            ref_seq, ref_frame = img_pair["A1"]
-            sample_seq, sample_frame = img_pair["B2"]
-            max_parts_diff = img_pair["n_differences"][1]
+        anchor_seq, anchor_frame = img_pair["A1"]
+        sample_seq, sample_frame = img_pair["B2"]
+        max_parts_diff = img_pair["n_differences"][1]
+    
+        # get states of both images
+        anchor_state = self.state_list[anchor_seq*self.n_frames+anchor_frame]
+        sample_state = self.state_list[sample_seq*self.n_frames+sample_frame]
         
-            # get states of both images
-            ref_state = self.state_list[ref_seq*self.n_frames+ref_frame]
-            sample_state = self.state_list[sample_seq*self.n_frames+sample_frame]
-            
-            # load images and change mask
-            anchor = self._load_image(ref_seq, ref_frame)
-            sample = self._load_image(sample_seq, sample_frame)
-            change_mask = self._load_binary_change_mask(ref_seq, ref_frame, 
-                                            sample_frame, ref_state, sample_state)
-                        
-            if self.test_type == "orientation":
-                variable_of_interest = self._get_max_orientation_diff(
-                                                    img_pair["quaternion_difference"])
-                variable_of_interest = img_pair["quaternion_difference"]
-                tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
-                                    self.norm_type, None, None)
-            elif self.test_type == "roi_aligned":
-                variable_of_interest = self._get_max_orientation_diff(
-                                                    img_pair["quaternion_difference"])
-                # load segmentation masks to make roi crops
-                SegMaskImage1, SegMaskImage2 = self._load_segmentation_masks(ref_seq, 
-                                                sample_seq, ref_frame, sample_frame) 
-                tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
-                        self.norm_type, SegMaskImage1, SegMaskImage2)
-            else:
-                variable_of_interest = None
-                tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
-                                    self.norm_type, None, None)
-        
-            # apply transforms
-            anchor = tf(anchor, 'anchor')
-            sample = tf(sample, 'sample')
-            change_mask = tf(change_mask, 'label')
-        
-        else: # get saved image pairs with fixed translation or scale or ROI crop
-            assert self.img_size[0] == self.img_size[1] == 256, \
-                "The saved image pairs are of size (256,256)"
-            
-            img_names = img_pair['img_name']
-            variable_of_interest = img_pair['variable_of_interest']
-            max_parts_diff = img_pair["n_differences"][1] \
-                if type(img_pair["n_differences"])!=int else img_pair["n_differences"] 
-
-            # get path to images
-            path_anchor = os.path.join(self.path_to_data, "References", img_names)
-            path_sample = os.path.join(self.path_to_data, "Samples", img_names)
-            path_mask = os.path.join(self.path_to_data, "ChangeMasks", img_names)
-
-            # load images
-            anchor = Image.open(path_anchor).convert("RGB")
-            sample = Image.open(path_sample).convert("RGB")
-            change_mask = Image.open(path_mask).convert("L")
-            
-            # get & apply transforms
-            tf = EvalTransforms('', anchor.size, self.img_size, self.norm_type, None, None)
-            anchor = tf(anchor, 'anchor')
-            sample = tf(sample, 'sample')
-            change_mask = tf(change_mask, 'label')
-
-        # sanity checks
-        assert (anchor.shape == sample.shape), "Anchor and sample images do not have "\
-                                                    "the same dimensions"
-        assert (change_mask.shape[-2:] == anchor.shape[-2:]), "Change mask and anchor "\
-                                                "image do not have the same dimensions"
-        assert torch.count_nonzero(change_mask) + torch.count_nonzero(1-change_mask) == \
-                            self.img_size[0]*self.img_size[1], \
-                            "There are values in the change_mask that are neither 0 nor 1"
+        # load images and change mask
+        anchor = self._load_image(anchor_seq, anchor_frame)
+        sample = self._load_image(sample_seq, sample_frame)
+        change_mask = self._load_binary_change_mask(anchor_seq, anchor_frame, 
+                                        sample_frame, anchor_state, sample_state)
+                    
+        variable_of_interest = self._get_max_orientation_diff(
+                                img_pair["quaternion_difference"])
+        crop_params = {"anchor": img_pair["A1_crop"],
+                        "sample": img_pair["B2_crop"]}
+        tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
+                self.norm_type, None, None, crop_params)
+    
+        # apply transforms
+        anchor = tf(anchor, 'anchor')
+        sample = tf(sample, 'sample')
+        change_mask = tf(change_mask, 'label')
         
         return anchor, sample, change_mask, variable_of_interest, max_parts_diff 

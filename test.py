@@ -18,17 +18,17 @@ data_root = "/shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData"
 CDD_test = EvalDataset(data_list_filepath=cfg.test_dir,
                         img_size=cfg.img_transforms['img_size'],
                         norm_type = cfg.img_transforms['normalization'],
-                        test_type = ds_test_type)
+                        test_type = 'roi')
 dataloader = DataLoader(CDD_test, batch_size=1, shuffle=False, 
                         num_workers=cfg.num_workers, drop_last=True)
 
 # create output directory
-output_dir = os.path.join(cfg.output_dir, eval_set, vis_dir_test_type)
+output_dir = os.path.join(cfg.output_dir)
 os.makedirs(output_dir)
 cfg.vis_dir = os.path.join(output_dir, "visualize")
 os.makedirs(cfg.vis_dir)
 
 # run evaluation
 Evaluator = CDEvaluator(args=cfg, dataloader=dataloader, 
-                test_type=ds_test_type, output_dir = output_dir)
+                test_type='roi', output_dir = output_dir)
 Evaluator.eval_models()

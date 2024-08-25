@@ -49,7 +49,7 @@ class CDTrainer():
                         for x in ['train', 'val']}
         
         # initialize functions and network       
-        self.net, self.device = build_model(args=args, gpu=args.gpu)
+        self.net, self.device = build_model(args=args)
         self.optimizer = get_optimizer(self.net, args)
         self.lr_scheduler = get_scheduler(self.optimizer, args)
         self.loss_func = get_loss_func(args.loss)
@@ -117,7 +117,7 @@ class CDTrainer():
         
         # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # self.lr_scheduler.load_state_dict(
-            # checkpoint['exp_lr_scheduler_state_dict'])
+        #     checkpoint['exp_lr_scheduler_state_dict'])
 
         # update some states
         self.epoch_to_start = checkpoint['epoch_id'] + 1

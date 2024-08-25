@@ -14,26 +14,24 @@ class SyntheticChangeDataset(Dataset):
     
     def __init__(
         self,
-        data_path: str = "",
+        data_path: str,
+        img_transforms: dict,
         orientation_thresholds: tuple = (0, 0.1),   
-        parts_diff_thresholds: tuple = (0, 5),     
-        preprocess: bool = False,                 
-        img_transforms: dict = {}
+        parts_diff_thresholds: tuple = (1, 6),
+        preprocess: bool = False              
         ):
         '''
         Arguments:
             data_path (string): path to the folder containing the dataset
+            img_transforms (dict): a dictionary containing all the image 
+                    transforms from the config file
             orientation_thresholds (tuple): the minimum & maximum nQD (norm of quaternion 
                                             differences) between two images in a pair
             parts_diff_thresholds (tuple): the minimum & maximum number of different
                                            parts between two images in a pair
             preprocess (bool): if True, run preprocessing functions, i.e. save list 
                                 of all states and orientation differences in dataset
-            img_transforms (dict): a dictionary containing all the image 
-                                transforms from the config file
         '''
-        assert data_path != "", "Please enter a folder name when instantiating ChangeDataset"
-        
         # make input variables class-wide
         self.orientation_thresholds = orientation_thresholds
         self.parts_diff_thresholds = parts_diff_thresholds

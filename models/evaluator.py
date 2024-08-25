@@ -42,7 +42,7 @@ class CDEvaluator():
         self.curr_config = (-1,-1)
 
         # instantiate network
-        self.net, self.device = build_model(args=args, gpu=args.gpu, train=False)
+        self.net, self.device = build_model(args=args, train=False)
         
         self.changing_var = self._decode_test_type(test_type)
         
@@ -70,7 +70,6 @@ class CDEvaluator():
         self.vis_dir = args.vis_dir
         self.norm_type = args.img_transforms['normalization']
         
-        
     def _decode_test_type(self, test_type):
         ''' Turn test type into the variable that is being varied to make test categories.'''
 
@@ -87,8 +86,10 @@ class CDEvaluator():
 
         if os.path.exists(os.path.join(self.checkpoint_dir, 'best_ckpt.pt')):
             ckpt_path = os.path.join(self.checkpoint_dir, 'best_ckpt.pt')
+        elif os.path.exists(os.path.join(self.checkpoint_dir, 'last_ckpt.pt')):
+            ckpt_path = os.path.join(self.checkpoint_dir, 'last_ckpt.pt')
         else:
-            raise FileNotFoundError('no such checkpoint %s', ckpt_path)
+            raise FileNotFoundError(f'no such checkpoint in {self.checkpoint_dir}')
 
         self.logger.write(f'loading checkpoint from {ckpt_path} \n')
         # load the entire checkpoint
@@ -165,7 +166,6 @@ class CDEvaluator():
            assert max_parts_diffs[i] == max_parts_diffs[i+1], \
                "In the same batch, we have two different max part differences"
         return var_of_interest[0].item(), max_parts_diffs[0].item()
-
 
     def _collect_running_batch_states(self):
         ''' Update states/scores and log text & images depending on epoch. '''
