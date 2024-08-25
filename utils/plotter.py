@@ -144,7 +144,6 @@ class TestScorePlotter():
     
         v_min = {'iou_1': 0.2, 'f1_1': 0.4}
         v_max = {'iou_1': 1, 'f1_1': 1}
-        swap_classes = {'iou_1': 'iou_0', 'f1_1': 'f1_0'}
         for metric_of_interest in ['f1_1', 'iou_1']:
             all_score = df[metric_of_interest].to_numpy()
             all_voi = df[self.var_of_interest].to_numpy() # voi = variable of interest
