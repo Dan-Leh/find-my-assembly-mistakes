@@ -3,7 +3,7 @@ import argparse
 
 
 def get_overwrite_arguments(parser, train:bool): 
-    ''' Function which stores all the available config arguments '''
+    ''' Function which stores all the available config arguments and their function. '''
 
     parser.add_argument('--experiment_name', type=str, help="Name used for creating checkpoint and 'results' directory")
 
@@ -48,7 +48,7 @@ def get_overwrite_arguments(parser, train:bool):
 
     else: # test
         parser.add_argument('--checkpoint_dir', type=str, help="Only used during testing, to point to directory containing the model checkpoints")
-        parser.add_argument('--test_sets', type=str, help="Names of the test sets to evaluate model on.")
+        parser.add_argument('--test_pair_filepath', type=str, help="The path to a .json file containing all of the predefined test pairs and their transforms (cropping parameters).")
 
     # misc
     parser.add_argument('--output_root', type=str, help="The directory where all experiment results are stored. A folder with the experiment name will be created in this directory")
