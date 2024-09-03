@@ -496,8 +496,8 @@ class Transforms(torch.nn.Module):
         bbox = self._get_bbox_coordinates(segmask) # left, right, top, bottom
         
         # get the number of pixels to append to object in x & y directions
-        x_margin = round(percent_margin*(bbox[1]-bbox[0]))
-        y_margin = round(percent_margin*(bbox[3]-bbox[2]))
+        x_margin = round(percent_margin/100*(bbox[1]-bbox[0]))
+        y_margin = round(percent_margin/100*(bbox[3]-bbox[2]))
         
         # get allowable margins so that we do not crop outside the image boundaries
         H, W = segmask.shape[0:2]

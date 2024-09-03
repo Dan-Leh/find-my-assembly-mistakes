@@ -6,7 +6,6 @@ import yaml
 import matplotlib.pyplot as plt
 import types
 import os
-import numpy as np
 
 from datasets.real_img_dataset import RealChangeDataset
 from models.build_functions import build_model
