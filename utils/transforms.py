@@ -123,6 +123,7 @@ class Transforms(torch.nn.Module):
     
     def _check_for_mistake_in_config(self, tf_cfg:dict) -> None:
         ''' Make sanity checks to prevent transforms that cannot coexist '''
+        
         if tf_cfg['random_crop']:
             assert tf_cfg['max_translation'] == 0, 'Specifying translation amount '\
                                     'in addition to random cropping not supported'
@@ -284,8 +285,10 @@ class Transforms(torch.nn.Module):
             crop_params = self._get_crop_for_translation(seg1, seg2, trans_pixels)
         elif tf_cfg['ROI_crops']:
             crop_params = {
-                'anchor': self._roi_crop_parameter(seg1, tf_cfg['center_roi']),
-                'sample': self._roi_crop_parameter(seg2, tf_cfg['center_roi'])}
+                'anchor': self._roi_crop_parameter(seg1, tf_cfg['center_roi'],
+                                                   tf_cfg['roi_margin']),
+                'sample': self._roi_crop_parameter(seg2, tf_cfg['center_roi'],
+                                                   tf_cfg['roi_margin'])}
         else: # make a square crop
             top = seg1.shape[0] // 2 - min_HW // 2
             left = seg2.shape[1] // 2 - min_HW // 2
@@ -462,7 +465,8 @@ class Transforms(torch.nn.Module):
         
         return crop_params
 
-    def _roi_crop_parameter(self, segmask: np.ndarray, center_roi: bool) -> list:
+    def _roi_crop_parameter(self, segmask: np.ndarray, center_roi: bool,
+                            percent_margin: int = 10) -> list:
         ''' Get parameters for region of interest (ROI) cropping.
         
         Function that takes the bounding box of the object, and adds 10% margins 
@@ -473,6 +477,12 @@ class Transforms(torch.nn.Module):
             segmask (numpy array): segmentation mask of anchor or sample images
             center_roi (bool): whether to randomly position object within crop 
                                (if False) or have it always be centered (if True)
+            percent_margin (int): the size of margins around the assembly object,
+                both above & below, and to the right & left, expressed as a 
+                percentage of the height and width of the assembly object. Eg. 
+                a percent_margin of 10% corresponds to 10% of the object height 
+                being added above/below and 10% of the object width being added 
+                to the right/left, with the object randomly translated therein.
         Returns: 
             crop_params (list): [top, left, height, width] '''
                 
@@ -485,9 +495,9 @@ class Transforms(torch.nn.Module):
         
         bbox = self._get_bbox_coordinates(segmask) # left, right, top, bottom
         
-        # desired margins: 10% of object height/width
-        x_margin = round(0.1*(bbox[1]-bbox[0]))
-        y_margin = round(0.1*(bbox[3]-bbox[2]))
+        # get the number of pixels to append to object in x & y directions
+        x_margin = round(percent_margin*(bbox[1]-bbox[0]))
+        y_margin = round(percent_margin*(bbox[3]-bbox[2]))
         
         # get allowable margins so that we do not crop outside the image boundaries
         H, W = segmask.shape[0:2]

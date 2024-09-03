@@ -240,6 +240,7 @@ def get_overwrite_arguments(parser, train:bool):
     # geometric transformations
     parser.add_argument('--img_transforms/img_size', nargs=2, type=int, help="Size of the input images to the network, regardless of prior cropping, etc...")
     parser.add_argument('--img_transforms/ROI_crops', type=str2bool, help="Whether to create region of interest crops of the assembly object")
+    parser.add_argument('--img_transforms/roi_margin', type=int, default=10, help="The size of margins to add to bounding box of object for making ROI crops, expressed as a percentage. E.g. an roi_margin of 10 corresponds to 10% of the object height being added above/below and 10% of the object width being added to the right/left, with the object randomly translated in that crop.")
     parser.add_argument('--img_transforms/center_roi', type=str2bool, help='Whether or not to have roi crops perfectly centered i.e. to create perfectly aligned image pairs.')
     parser.add_argument('--img_transforms/random_crop', type=str2bool, help="Whether to create random crops of anchor and sample images wherein the whole assembly object is still visible.")
     parser.add_argument('--img_transforms/max_translation', type=float, help="Maximum amount of random translation between the anchor and sample images, indicated as a fraction of the image size, i.e. 10% translation should be 0.1.")

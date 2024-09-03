@@ -1,13 +1,13 @@
 #PBS -S /bin/bash
 #PBS -l select=1:ncpus=8:ngpus=1:gpu_type=v100:mem=32gb:dcloc=htc
-#PBS -N gca_final
+#PBS -N roi50_gca_final
 
 source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 
 cd /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net
 
 MODEL=gca
-NAME=$MODEL'_final_more_ckpts'
+NAME=$MODEL'_final_roim30'
 python train.py \
 --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config_files/final_experiments_cfg.yaml' \
 --experiment_name $NAME \
@@ -15,6 +15,7 @@ python train.py \
 --resume_results_dir /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/$MODEL \
 --T_0 300 \
 --save_ckpt_interval 20 \
+--img_transforms/roi_margin 50 \
 --cyws/attention $MODEL \
 
 python test.py \
