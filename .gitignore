@@ -9,6 +9,9 @@ results/*
 *.pyc
 *.pyo
 __pycache__/*
+**/__pycache__/
+__pycache__
+*.pyc
 
 # copied from BIT
 .DS_Store
@@ -32,3 +35,4 @@ docs/src/**/*
 *.pt
 *.pth
 checkpoints
+

@@ -7,7 +7,7 @@ source activate /hpc/data/hpc-smc-internships/dlehman/python_envs/new
 cd /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net
 
 MODEL=gca
-NAME=$MODEL'_final_roim30'
+NAME=$MODEL'_final_roim50'
 python train.py \
 --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/config_files/final_experiments_cfg.yaml' \
 --experiment_name $NAME \
