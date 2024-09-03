@@ -102,7 +102,9 @@ class CDTrainer():
         if self.gradually_augment:  
             self.augmentations = args.img_transforms
             self.num_workers = args.num_workers
-        if self.save_ckpt: self.checkpoint_dir = args.checkpoint_dir
+        if self.save_ckpt: 
+            self.checkpoint_dir = args.checkpoint_dir
+            self.save_ckpt_interval = args.save_ckpt_interval
 
     def _load_checkpoint(self) -> None:
         ''' load the last checkpoint from previous training and update states. '''
@@ -170,17 +172,25 @@ class CDTrainer():
         
         return vis_array
 
-    def _save_checkpoint(self, ckpt_name:str):
+    def _save_checkpoint(self, ckpt_name:str, best_or_last:bool=True):
         ''' Save latest (every epoch) or best checkpoint (when IoU is max) '''
         
-        torch.save({
-            'epoch_id': self.epoch_id,
-            'best_val_iou': self.best_val_iou,
-            'best_epoch_id': self.best_epoch_id,
-            'model_state_dict': self.net.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'exp_lr_scheduler_state_dict': self.lr_scheduler.state_dict(),
-        }, os.path.join(self.checkpoint_dir, ckpt_name))        
+        if best_or_last:
+            state_dict = {
+                'epoch_id': self.epoch_id,
+                'best_val_iou': self.best_val_iou,
+                'best_epoch_id': self.best_epoch_id,
+                'model_state_dict': self.net.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'exp_lr_scheduler_state_dict': self.lr_scheduler.state_dict(),
+            }
+        else:
+            state_dict = {
+                'epoch_id': self.epoch_id,
+                'model_state_dict': self.net.state_dict(),
+            }
+        
+        torch.save(state_dict, os.path.join(self.checkpoint_dir, ckpt_name))        
 
     def _update_metric(self) -> np.ndarray:
         """ Update running average of scores (every iteration). """
@@ -264,8 +274,14 @@ class CDTrainer():
             self.best_val_iou = self.epoch_iou
             self.best_epoch_id = self.epoch_id
             self._save_checkpoint(ckpt_name='best_ckpt.pt')
-            self.logger.write('*' * 10 + 'Best model updated!\n')
-            self.logger.write('\n')
+            self.logger.write('*' * 10 + 'Best model updated!\n\n')
+        
+        #   
+        if np.mod(self.epoch_id, self.save_ckpt_interval) == 0: 
+            ckpt_name = f"ckpt_epoch_{self.epoch_id}.pt"
+            self._save_checkpoint(ckpt_name='best_ckpt.pt')
+            self.logger.write('Model checkpoint saved every '
+                              f'{self.save_ckpt_interval} epochs!\n\n')
             
     def _increase_augmentation(self):
         ''' Gradually increase image augmentation each epoch. '''

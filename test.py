@@ -24,10 +24,11 @@ more_nqd_bins = test_data_configuration['more_nqd_bins']
 for i in range(len(set_name)):
     
     # instantiate dataset
+    ds_type = 'roi_aligned' if test_type[i].endswith('_aligned') else test_type[i].lower() 
     CDD_test = EvalDataset(data_list_filepath=data_path[i],
                             img_size=cfg.img_transforms['img_size'],
                             norm_type = cfg.img_transforms['normalization'],
-                            test_type = test_type[i].lower(),
+                            test_type = ds_type,
                             more_nqd_bins = more_nqd_bins[i])
     dataloader = DataLoader(CDD_test, batch_size=1, shuffle=False, 
                             num_workers=cfg.num_workers, drop_last=True)

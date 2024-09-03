@@ -514,10 +514,10 @@ class SyntheticChangeDataset(Dataset):
         change_mask = tf(change_mask, 'label')
         
         if self.randomize_background:
-            if random.random() > self.frac_rand_background:
+            if random.random() < self.frac_rand_background:
                 image_a1 = self._randomize_image_background(image_a1, 'anchor',
                                                             sequence_a, frame_1, tf)
-            if random.random() > self.frac_rand_background:
+            if random.random() < self.frac_rand_background:
                 image_b2 = self._randomize_image_background(image_b2, 'sample',
                                                             sequence_b, frame_b2, tf)
                 

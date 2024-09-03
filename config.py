@@ -204,6 +204,7 @@ def get_overwrite_arguments(parser, train:bool):
         parser.add_argument('--warmup_epochs', type=int, help='Number of epochs during which learning rate linearly increases from 0 to maximum lr')
         parser.add_argument('--max_epochs', type=int, help='Number of epochs to train for')
         parser.add_argument('--save_ckpt', type=str2bool, help='Whether to save a checkpoint. Useful for testing code without creating checkpoint files.')    
+        parser.add_argument('--save_ckpt_interval', type=int, help='At what interval of epochs to save a checkpoint?')
         parser.add_argument('--init_type', type=str, help="What type of weight initialization to use for parameters that are not loaded from pretrained weights. Options include 'normal', 'xavier', 'kaiming' and 'orthogonal'")
         # geometric transformations
         parser.add_argument('--img_transforms/rotation', type=str2bool, help="Whether to rotate the image randomly, either 0, 90, 180 or 270 degrees.")

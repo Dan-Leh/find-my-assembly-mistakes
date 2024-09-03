@@ -71,11 +71,8 @@ class CDEvaluator():
 
         if test_type in ['scale', 'orientation', 'translation']:
             changing_var = test_type 
-        elif test_type in ['present', 'roi_present', 'missing', 'roi_missing',
-                           'roi', 'roi_aligned']:
-            changing_var = 'orientation'
         else:
-            raise ValueError(f"Unrecognized test type {test_type}")
+            changing_var = 'orientation'
         return changing_var
 
     def _load_checkpoint(self):

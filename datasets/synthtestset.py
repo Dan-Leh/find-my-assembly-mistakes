@@ -55,6 +55,15 @@ class EvalDataset(Dataset):
             for i in range(len(self.determinstic_set)-1,-1,-1):  # loop backward
                 if self.determinstic_set[i]["n_differences"] == no_change:
                     self.determinstic_set.pop(i)
+                #### TODO: Remove these lines, they were added just to speed up testing
+                elif self.determinstic_set[i]["quaternion_difference"] > 0.3:
+                    self.determinstic_set.pop(i)
+                # elif self.determinstic_set[i]["n_differences"][0] < 4:
+                #     self.determinstic_set.pop(i)
+                # elif self.determinstic_set[i]["n_differences"][0] > 6:
+                #     self.determinstic_set.pop(i)
+                
+
         
         # decode where to load data from
         if (test_type in ["orientation", "roi_aligned"] or self.make_roi_crops):

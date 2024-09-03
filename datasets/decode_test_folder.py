@@ -44,17 +44,20 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
                     "Val_states_inter": "Val_states_inter",
                     "New_parts": "Val_states_new_parts"}
 
-    if roi_crop:  # whether to test on ROI crops or full images
-        test_type_list = ['ROI', 'ROI_missing', 'ROI_present']
-    else:
-        test_type_list = ['Orientation', 'Scale', 'Translation', 
-                        'Missing', 'Present']
+
 
     test_configuration = {'set_name': [], 'test_type': [], 'data_path': [],
                           'more_nqd_bins': []}
     # Extract all the test sets that we want to evaluate on
     for eval_set in eval_set_list:
         # Run evaluation script for every aspect/type that is tested for (eg. nQD)
+        if roi_crop:  # whether to test on ROI crops or full images
+            test_type_list = ['ROI']
+            if eval_set == 'New_parts': 
+                test_type_list += ['ROI_missing', 'ROI_present']
+        else:
+            test_type_list = ['Orientation', 'Scale', 'Translation', 
+                            'Missing', 'Present']
         for test_type in test_type_list:      
             new_bins = False  # default
             if test_type == 'Orientation':
@@ -71,16 +74,16 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
                                                 "eval_present_parts_2k.json")
             elif test_type.startswith('ROI'):
                 if center_roi:  # if the roi crops should be aligned
-                    test_type = 'ROI_aligned'
                     if test_type == 'ROI_missing':
                         data_list_filepath = os.path.join(data_root, 
-                                set2dir_name[eval_set], "eval_missing_parts_4k.json")
+                                set2dir_name[eval_set], "eval_missing_parts_30k.json")
                     elif test_type == 'ROI_present':
                         data_list_filepath = os.path.join(data_root, 
-                                set2dir_name[eval_set], "eval_present_parts_4k.json")
+                                set2dir_name[eval_set], "eval_present_parts_30k.json")
                     else:
                         data_list_filepath = os.path.join(data_root, 
-                                set2dir_name[eval_set], "eval_rand_20k.json")
+                                set2dir_name[eval_set], "eval_rand_30k.json")
+                    test_type += "_aligned"
                 else: # if the crops can have some small translations
                     # check if there is a json file containing crops:
                     if test_type == 'ROI':
@@ -90,7 +93,8 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
                             data_list_filepath = try_path
                             new_bins = True
                         else: 
-                            os.path.join(data_root, "Test_pairs", 
+                            print(f'Path not found {try_path}')
+                            data_list_filepath = os.path.join(data_root, "Test_pairs", 
                                             eval_set+"_"+test_type, "pair_info.json")
                     else:
                         mispres = 'missing' if test_type.endswith('missing') else 'present'
@@ -100,7 +104,8 @@ def decode_test_sets(test_set_names:str, roi_crop:bool, center_roi:bool) -> dict
                             data_list_filepath = try_path
                             new_bins = True
                         else: 
-                            os.path.join(data_root, "Test_pairs", 
+                            print(f'Path not found {try_path}')
+                            data_list_filepath = os.path.join(data_root, "Test_pairs", 
                                             eval_set+"_"+test_type, "pair_info.json")
                 
             test_configuration['set_name'].append(eval_set)

@@ -53,21 +53,21 @@ class CrossAttentionLayer(nn.Module):
         attention_map = nn.Softmax(dim=3)(attention_map)
             
         ############### save attention map for visualizing query later #################
-        # if vis_CA: # save cross-attention weights for visualization in image pairs
-        #     import numpy as np 
-        #     import os
-        #     save_root = "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/visualize_cross-attention/cross-attention_maps"
-        #     spatial_resolutions = {0: "8x8", 1: "16x16", 2: "32x32"}
-        #     # remove files from previous run
-        #     for i in range(3):
-        #         file_name = f"sample{self.n_times_called}_spatial_res_{spatial_resolutions[i]}.npy"
-        #         save_path = os.path.join(save_root, file_name)
-        #         if not os.path.exists(save_path):
-        #             break
-        #     map4saving = attention_map.view(original_size).cpu().detach().numpy()
-        #     np.save(save_path, map4saving)
-        #     self.n_times_called += 1
-        #     print(f"SAVING ATTENTION MAP with shape {map4saving.shape}")
+        if vis_CA: # save cross-attention weights for visualization in image pairs
+            import numpy as np 
+            import os
+            save_root = "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net-extra/visualize_cross-attention/cross-attention_maps"
+            spatial_resolutions = {0: "8x8", 1: "16x16", 2: "32x32"}
+            # remove files from previous run
+            for i in range(3):
+                file_name = f"sample{self.n_times_called}_spatial_res_{spatial_resolutions[i]}.npy"
+                save_path = os.path.join(save_root, file_name)
+                if not os.path.exists(save_path):
+                    break
+            map4saving = attention_map.view(original_size).cpu().detach().numpy()
+            np.save(save_path, map4saving)
+            self.n_times_called += 1
+            print(f"SAVING ATTENTION MAP with shape {map4saving.shape}")
         ################################################################################
         
         attended_features = torch.einsum("bijp,bcp->bcij", attention_map, V) # this is basically a dot produt that, for each cannel in V, multiplies the attention scores corresponding to each location i,j with the values that those attention scores are attending to, to end up with the features that, regardless of spatial location, matched most strongly with the features at i,j.
