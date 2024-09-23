@@ -29,8 +29,7 @@ class RealChangeDataset(Dataset):
             for img in labels:
                 self.pairs_info.append({
                     'sample': os.path.join(data_path, category, img),  # real img
-                    'anchor': os.path.join('/shared/nl011006/res_ds_ml_restricted'\
-                        '/dlehman', labels[img]['anchor']),  # synthetic anchor
+                    'anchor': os.path.join(data_path, category, 'anchors', img.replace('.jpg','.camera.png')),  # synthetic anchor
                     'bbox': labels[img]['bbox'],
                     'category': labels[img]['category']
                 })              
@@ -65,7 +64,7 @@ class RealChangeDataset(Dataset):
                                                         bbox[1]+bbox[3]))
         
         # load segmentation mask of anchor, to use for ROI cropping
-        segmask_path = anchor_img_path.replace('.png', '.instance segmentation.png')
+        segmask_path = anchor_img_path.replace('.camera.png', '.segmentation.png')
         segmask = np.array(Image.open(segmask_path).convert('L'))  # grayscale
         segmask = (segmask > 0).astype(np.uint8)
         

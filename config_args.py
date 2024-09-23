@@ -6,10 +6,11 @@ def get_overwrite_arguments(parser, train:bool):
     ''' Function which stores all the available config arguments and their function. '''
 
     parser.add_argument('--experiment_name', type=str, help="Name used for creating checkpoint and 'results' directory")
+    parser.add_argument('--data_root', type=str, help="Path to the root directory in which all train and test sets are stored")
 
     if train:  # these config arguments are only relevant during training
-        parser.add_argument('--train_dir', type=str, help="The directory containing all the training data")
-        parser.add_argument('--val_dir', type=str, help="The directory containing all the validation data")
+        parser.add_argument('--train_dir_name', type=str, help="The directory name containing all the training data")
+        parser.add_argument('--val_dir_name', type=str, help="The directory name containing all the validation data")
         parser.add_argument('--checkpoint_root', type=str, help="Checkpoint dir will be created by adding folder with experiment name")
 
         parser.add_argument('--resume_ckpt_path', type=str, help="If not an empty string, training is resumed with weights loaded from the given checkpoint path")
@@ -54,9 +55,10 @@ def get_overwrite_arguments(parser, train:bool):
         
     else: # test
         parser.add_argument('--checkpoint_dir', type=str, help="Only used during testing, to point to directory containing the model checkpoints")
-        parser.add_argument('--test_sets', type=str, help="Names of the test sets to evaluate model on.")
+        parser.add_argument('--test_set_name', type=str, help="Name of the test set to evaluate model on.")
 
     # misc
+    parser.add_argument('--bg_img_root', type=str, help="Path to the directory containing the 'unlabeled2017' folder and the train, validation and test json files splitting the random background images according to which set they can be used in.")
     parser.add_argument('--output_root', type=str, help="The directory where all experiment results are stored. A folder with the experiment name will be created in this directory")
     parser.add_argument('--gpu', type=str2bool, help='Uses GPU if true, else CPU')
     parser.add_argument('--num_workers', type=int)

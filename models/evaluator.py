@@ -44,7 +44,7 @@ class CDEvaluator():
         # instantiate network
         self.net, self.device = build_model(args=args, train=False)
         
-        self.changing_var = self._decode_test_type(test_type)
+        self.changing_var = test_type
         
         # Instantiate classes to make & record the evaluation scores
         self.running_metric_micro = ConfuseMatrixMeter(n_class=2)
@@ -69,15 +69,6 @@ class CDEvaluator():
         self.checkpoint_dir = args.checkpoint_dir
         self.vis_dir = args.vis_dir
         self.norm_type = args.img_transforms['normalization']
-        
-    def _decode_test_type(self, test_type):
-        ''' Turn test type into the variable that is being varied to make test categories.'''
-
-        if test_type in ['scale', 'orientation', 'translation']:
-            changing_var = test_type 
-        else:
-            changing_var = 'orientation'
-        return changing_var
 
     def _load_checkpoint(self):
 

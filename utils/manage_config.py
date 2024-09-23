@@ -16,7 +16,7 @@ def read_config(train:bool = True) -> types.SimpleNamespace:
         train (bool): if true, config is used for training, else for testing
     '''
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str)
+    parser.add_argument('--config', type=str, default="/shared/nl011006/res_ds_ml_restricted/dlehman/find-my-assembly-mistakes/results/noam/config.yaml")
         
     # gather all the values that were given through command line   
     overwrite_parser = get_overwrite_arguments(parser, train)
@@ -113,7 +113,7 @@ def save_config(config_dict:dict) -> None:
     
     # save config
     with open(config_path, "w") as configfile:
-        yaml.dump(config_dict, configfile)
+        yaml.dump(config_copy, configfile)
         
         
 def make_train_dirs(config_dict:dict) -> dict:
@@ -147,7 +147,7 @@ def make_train_dirs(config_dict:dict) -> dict:
     os.mkdir(config_dict['vis_dir'])
     os.mkdir(os.path.join(config_dict['vis_dir'], 'train'))
     os.mkdir(os.path.join(config_dict['vis_dir'], 'val'))
-
+    
     return config_dict
 
     
@@ -155,7 +155,8 @@ def make_test_dirs(config_dict: dict):
     ''' Add arguments for testing and build directories '''
     
     config_dict['output_dir'] = os.path.join(config_dict['output_root'], 
-                                config_dict['experiment_name'], f"Test")
+                                config_dict['experiment_name'], f"Test", 
+                                config_dict['test_set_name'])
     # add number to output dir if it already exists
     if os.path.isdir(config_dict['output_dir']):
         orig_path = config_dict['output_dir']
@@ -171,6 +172,6 @@ def make_test_dirs(config_dict: dict):
         config_dict['checkpoint_dir'] = os.path.join(
             config_dict['checkpoint_root'], config_dict['experiment_name'])
     
-    config_dict['vis_dir'] = os.path.join(config_dict['output_dir'], 'visualize')
-    
+    config_dict['vis_dir'] = os.path.join(config_dict['output_dir'], "visualize")
+
     return config_dict

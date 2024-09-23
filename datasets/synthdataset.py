@@ -22,7 +22,8 @@ class SyntheticChangeDataset(Dataset):
         orientation_thresholds: tuple = (0, 0.1),   
         parts_diff_thresholds: tuple = (1, 6),
         preprocess: bool = False,
-        split: str = "train"
+        split: str = "train",
+        bg_img_root: str = "./data/COCO_Images"
         ):
         '''
         Arguments:
@@ -39,6 +40,8 @@ class SyntheticChangeDataset(Dataset):
                                 of all states and orientation differences in dataset
             split (str): train, test or val. Only used for randomizing background images
                         as there is a separate list preallocated to each split.
+            bg_img_root (path): path to where the random background images are 
+                                        stored.
         '''
         # make input variables class-wide
         self.orientation_thresholds = orientation_thresholds
@@ -55,9 +58,8 @@ class SyntheticChangeDataset(Dataset):
         if img_transforms['frac_random_background'] > 0:  # initialize vars for randomizing bg
             self.randomize_background = True
             self.frac_rand_background = img_transforms['frac_random_background']
-            self.bg_img_folder = f"/shared/nl011006/res_ds_ml_restricted/dlehman/COCO_Images"
-            self.bg_img_root = os.path.join(self.bg_img_folder, "unlabeled2017")
-            img_list_path = os.path.join(self.bg_img_folder, f"{split}_img_list.json")
+            self.bg_img_root = os.path.join(bg_img_root, "unlabeled2017")
+            img_list_path = os.path.join(bg_img_root, f"{split}_img_list.json")
             with open(img_list_path, 'r') as f:
                 self.bg_img_list = json.load(f)
             f.close()

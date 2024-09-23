@@ -13,7 +13,7 @@ class EvalTransforms():
         '''
         Arguments:
             test_type (str): if it is 'ROI_aligned', the roi cropping function 
-                             is used
+                                to make aligned image pairs
             old_size (tuple of ints): height and width of 'raw' image
             img_size (tuple of ints): height and width of images when they are
                                       fed to the model.
@@ -23,9 +23,7 @@ class EvalTransforms():
             segmask1 (np.ndarray): foreground/background segmentation of sample,
                                    used for making roi crops
         '''
-        
-        self.test_type = test_type
-        
+                
         # get normalization parameters
         if norm_type == 'imagenet':
             self.norm_mean = [0.485, 0.456, 0.406]
@@ -65,10 +63,13 @@ class EvalTransforms():
     def __call__(self, img:torch.Tensor, img_name:str, real_img:bool=False):
         ''' Apply transforms to anchor, sample and change mask. '''
         
-        if img_name == 'label':
+        if img_name == 'label' or img_name == 'segmask_sample':
             img = self.label2tensor(img)/255
             if self.make_roi_crop:
-                p = self.crop_params['anchor']
+                if img_name == 'segmask_sample':  # used by background replacer
+                    p = self.crop_params['sample']
+                else:
+                    p = self.crop_params['anchor']
                 img = v2.functional.crop(img, p[0],p[1],p[2],p[3])
             else:
                 img = self.centercrop(img)

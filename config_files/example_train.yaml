@@ -1,9 +1,12 @@
-# file paths 
-train_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Train_states_v2
-val_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Val_states_v2
+# file paths
+experiment_name: example_train
+
+data_root: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData
+train_dir_name: Train_set
+val_dir_name: Main_test_set
 checkpoint_root: /hpc/scratch/dlehman/CD_checkpoints
 output_root: /shared/nl011006/res_ds_ml_restricted/dlehman/find-my-assembly-mistakes/results
-experiment_name: example_train
+bg_img_root: /shared/nl011006/res_ds_ml_restricted/dlehman/COCO_Images
 
 
 # change detection dataset hyperparameters
@@ -88,7 +91,7 @@ img_transforms:
   saturation: 0.6
   hue: 0.1
   gradually_augment: true
-  frac_random_background: 0.3
+  frac_random_background: 0
 
 # fourier domain adaptation
 fda:
