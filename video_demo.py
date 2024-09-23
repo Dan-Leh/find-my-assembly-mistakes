@@ -52,51 +52,49 @@ def load_model(model_name):
     
     return model, device
 
-def load_anchor_img(anchor_path):
+anchor_config = {"error_run_assembly_pulley":{
+                            "anchors": [
+                                "seq0113step0009.camera.png",
+                                "seq0111step0012.camera.png",
+                                "seq0010step0012.camera.png",
+                                "seq0134step0012.camera.png" ],
+                            "start_frames": np.array([0, 350, 450, 510])
+                            },
+                "error_run_disassembly_frontwheels":{
+                            "anchors": [
+                                "seq0134step0012.camera.png",
+                                "seq0116step0011.camera.png" ],
+                            "start_frames": np.array([0, 280])
+                            },
+                "error_run_assembly_frontbracket":{
+                            "anchors": ["anchor.png"],
+                            "start_frames": np.array([0])
+                            }
+                }
+
+
+def load_anchor_img(anchor_root, error_run, frame, highres):
     ''' load anchor and apply transforms '''
     
-    # dataset = SyntheticChangeDataset(data_path="/shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/IndustReal_states_v2",
-    #                                  img_transforms = { "ROI_crops": False,
-    #                                                     "brightness": 0,
-    #                                                     "center_roi": False,
-    #                                                     "contrast": 0,
-    #                                                     "frac_random_background": 0,
-    #                                                     "g_kernel_size": 1,
-    #                                                     "g_sigma_h": 1,
-    #                                                     "g_sigma_l": 1,
-    #                                                     "gradually_augment": False,
-    #                                                     "hflip_probability": 0,
-    #                                                     "hue": 0,
-    #                                                     "img_size": [256,256],
-    #                                                     "max_translation": 0,
-    #                                                     "normalization": 'imagenet',
-    #                                                     "random_crop": False,
-    #                                                     "rescale": 1.3,
-    #                                                     "rotation": False,
-    #                                                     "saturation": 0,
-    #                                                     "shear": 0,
-    #                                                     "vflip_probability": 0},
-    #                                  fda_config = {"frac_imgs_w_fda": 0},
-    #                                  orientation_thresholds = (0,0),
-    #                                  parts_diff_thresholds = (0,0)                          
-    #                                  )
+    anchor_cfg = anchor_config[error_run]
+    idx = np.max(np.where(anchor_cfg["start_frames"]<=frame))
+    anchor_name = anchor_cfg["anchors"][idx]
     
-    # idx = sequence * dataset.n_frames + frame
-    # data = dataset.__getitem__(idx)
-    # anchor = data[0]
+    anchor_path = os.path.join(anchor_root, anchor_name)
     
     img = Image.open(anchor_path).convert("RGB")
     
     anchor_transforms = v2.Compose([
             v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
-            v2.Resize(256),
+            v2.Resize(256) if not highres else v2.Resize(720),
             v2.Normalize(mean=norm_mean, std=norm_std)
             ])
     
     anchor = anchor_transforms(img)
     
     return anchor
+    
     
 sample_transforms = v2.Compose([
             v2.ToImage(),
@@ -105,13 +103,20 @@ sample_transforms = v2.Compose([
             v2.Resize(256),
             v2.Normalize(mean=norm_mean, std=norm_std)
             ])
+
+sample_transforms_hr = v2.Compose([
+            v2.ToImage(),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.CenterCrop(720),
+            v2.Normalize(mean=norm_mean, std=norm_std)
+            ])
     
 
-def imgs_to_video(img_list, save_path, video_filename = 'created_video.mp4', fps=30):
+def imgs_to_video(img_list, save_path, video_filename, fps, video_img_size):
     video_path = os.path.join(save_path, video_filename)
     
     codec = cv2.VideoWriter_fourcc(*'mp4v')
-    vid_writer = cv2.VideoWriter(video_path, codec, fps, (512,256))
+    vid_writer = cv2.VideoWriter(video_path, codec, fps, video_img_size)
     
     for img in img_list:
         vid_writer.write(img)
@@ -119,91 +124,167 @@ def imgs_to_video(img_list, save_path, video_filename = 'created_video.mp4', fps
     vid_writer.release()
     
     
+def make_visualizations(filtered_preds, preds, samples, anchors, only_filtered):
+    ''' blend anchor & prediction, and arrange frames side-by-side for video. '''
+    
+    def blend_w_anchor(pred, anchor):
+        # convert from white to red
+        pred = np.expand_dims(pred,-1)  # R
+        zeros = np.zeros((256,256,2))   # G & B
+        pred = np.concatenate((pred, zeros), axis=2).astype(np.uint8)
+        pred = Image.fromarray(pred * 255) 
+        if anchor.size != pred.size:
+            pred = pred.resize(anchor.size, Image.NEAREST)         
+        img = Image.blend(anchor, pred.convert("RGBA"), 0.5)
+        img = np.array(img.convert('RGB'))
+        return img
+    
+    output = []
+    for fpred, pred, sample, anchor in zip(filtered_preds, preds, samples, anchors):
+        
+        anchor_detrans = anchor.convert("RGBA")
+        filtered_pred = blend_w_anchor(fpred, anchor_detrans)
+        pred = blend_w_anchor(pred, anchor_detrans)
+        
+        # stack frames horizontally
+        if only_filtered:
+            npimg = np.hstack((filtered_pred, sample))
+        else:
+            npimg = np.hstack((pred, filtered_pred, sample))
+        
+        npimg = cv2.cvtColor(npimg, cv2.COLOR_RGB2BGR)
+        output.append(npimg)
+
+    return output
+
+    
+def majority_voting(frames: list, window_size: int) -> np.ndarray:
+    ''' 
+    Arguments:
+        frames (list): list of predictions 
+        window_size (int): window size across which majority is required
+        
+    Returns: 
+        filtered_frames (np array): frames after filtering 
+    '''
+    majority = window_size//2
+    frames = np.array(frames)
+    filtered_frames = np.zeros_like(frames)
+    for i in range(frames.shape[0]):
+        if i < window_size:
+            filtered_frames[i] = frames[i]
+        else:
+            video_slice = frames[i-window_size:i]
+            majorities = (np.sum(video_slice, axis=0)>majority)
+            filtered_frames[i] = (majorities.astype(np.uint8))
+    
+    return filtered_frames
+        
+
+def soft_voting(frames: list, window_size: int) -> np.ndarray:
+    ''' 
+    Arguments:
+        frames (list): list of softmax activations 
+        window_size (int): window size across which average activation needs
+            to exceed threshold
+        
+    Returns: 
+        filtered_frames (np array): frames after filtering
+    '''
+    half_window = window_size//2
+    threshold = window_size*0.8
+    frames = np.array(frames)
+    filtered_frames = np.zeros_like(frames)
+    for i in range(frames.shape[0]):
+        if i < half_window:
+            filtered_frames[i] = frames[i]
+        else:
+            video_slice = frames[i-half_window:i+half_window]
+            filtered = (np.sum(video_slice, axis=0)>threshold)
+            filtered_frames[i] = (filtered.astype(np.uint8))
+    
+    return filtered_frames
+
+    
 #%%
 
-MODEL_NAMES = ["lca_final"]
+ERROR_RUNS = [ "error_run_disassembly_frontwheels", "error_run_assembly_pulley"] #["error_run_assembly_frontbracket", "error_run_assembly_pulley", "error_run_disassembly_frontwheels", "error_run_pin_orientation", "error_run_scattered"]
+MODEL_NAMES = ["gca_final_roim50"] #["gca_final", "msa_final", "noam_final", "gca_final_roim20", "gca_final_roim30", "gca_final_roim40", "gca_final_roim50", "gca_from_VISION",  "lca_final"]
 NUM_SAMPLES = 'all'
-ANCHOR_PATH = "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net-extra/videos/anchor.png"
-VIDEO_FRAMES_DIR = "/shared/nl011006/res_ds_ml_restricted/GouthamBalachandran/error_demo/rgb"
-SAVE_PATH = "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net-extra/videos"
-VIDEO_NAME = "lca_final.mp4"
-FPS = 15
-
-anchor = load_anchor_img(ANCHOR_PATH)
-anchor_detrans = detransform(anchor)
-
-all_frames = os.listdir(VIDEO_FRAMES_DIR)
-all_frames = sorted([frame for frame in all_frames if frame.endswith('.jpg')])
-if NUM_SAMPLES == 'all':
-    frame_names = all_frames
+FPS = 20
+WINDOW_SIZE = 16  # window across which to take majority vote
+SAVE_PREDICTIONS = False  # either run inference and save predictions, or load saved predictions
+SHOW_FINAL = True  # if true, save images in higher resolution, and without raw output (only filtered)
+if SHOW_FINAL: 
+    assert SAVE_PREDICTIONS == False
+    IMG_DIMS = (2*720, 720)
 else:
-    frame_names = all_frames[:NUM_SAMPLES]
+    IMG_DIMS = (3*256, 256)
+FILTER_METHOD = 'soft'  # either 'soft' or 'hard' for soft/hard-voting
+for ERROR_RUN in ERROR_RUNS:
+    VIDEO_FRAMES_DIR = "/shared/nl011006/res_ds_ml_restricted/TimSchoonbeek/data/dan_test_rgb_only/"+ERROR_RUN+"/rgb"
+    SAVE_PATH = "/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net-extra/videos/"+ERROR_RUN
+    for MODEL_NAME in MODEL_NAMES:
+        VIDEO_NAME = MODEL_NAME+"_soft16_PRESENTATION.mp4"
+        
+        print(f"Making video {ERROR_RUN} with model {MODEL_NAME}")
 
-# fig, axs = plt.subplots(NUM_SAMPLES, 2+len(MODEL_NAMES), figsize=(5*len(MODEL_NAMES), 2*NUM_SAMPLES))
+        if not os.path.exists(SAVE_PATH): os.mkdir(SAVE_PATH)
 
-predictions = []
+        save_soft_pred_path = os.path.join(SAVE_PATH, 'soft_predictions', MODEL_NAME)
+        if not os.path.exists(save_soft_pred_path) and SAVE_PREDICTIONS: 
+            os.makedirs(save_soft_pred_path)
 
-for model_idx, model_name in enumerate(MODEL_NAMES):
+        all_frames = os.listdir(VIDEO_FRAMES_DIR)
+        all_frames = sorted([frame for frame in all_frames if frame.endswith('.jpg')])
+        if NUM_SAMPLES == 'all':
+            frame_names = all_frames
+        else:
+            frame_names = all_frames[:NUM_SAMPLES]
 
-    model, device = load_model(model_name)
-    
-    with torch.no_grad():
-        for i, frame in enumerate(frame_names):
-            
-            frame_path = os.path.join(VIDEO_FRAMES_DIR, frame)
+        soft_predictions = []
+        predictions = []
+        samples = []
+        anchors = []
+        if SAVE_PREDICTIONS: model, device = load_model(MODEL_NAME)
+        with torch.no_grad():
+            for i, frame in enumerate(frame_names):
+                if np.mod(i, 100) == 0:
+                    print(f"Model {MODEL_NAME}, image {i}/{len(frame_names)}")
+                frame_path = os.path.join(VIDEO_FRAMES_DIR, frame)
+                soft_pred_path = os.path.join(save_soft_pred_path, frame.replace('.jpg','.npy'))
+                                
+                # load sample image
+                sample = Image.open(frame_path)
+                
+                
+                if SAVE_PREDICTIONS:  # make model prediction
+                    anchor = load_anchor_img(SAVE_PATH, ERROR_RUN, i, highres=False)
+                    sample = sample_transforms(sample)
+                    raw_prediction = model(torch.unsqueeze(anchor,0).to(device), torch.unsqueeze(sample,0).to(device))
+                    second_channel = raw_prediction[0,1]
+                    soft_prediction = second_channel.cpu().numpy()
+                    np.save(soft_pred_path, soft_prediction)
 
-            # load and crop image
-            sample = Image.open(frame_path)
-            sample = sample_transforms(sample)
-                    
-            prediction = model(torch.unsqueeze(anchor,0).to(device), torch.unsqueeze(sample,0).to(device))
-            prediction = torch.argmax(prediction, dim=1, keepdim=True).to(torch.uint8) * 255
+                else:  # load saved predictions
+                    soft_prediction = np.load(soft_pred_path)
+                    anchor = load_anchor_img(SAVE_PATH, ERROR_RUN, i, highres=True)
+                    sample = sample_transforms_hr(sample)
+                
+                anchors.append(detransform(anchor))
+                samples.append(np.array(detransform(sample)))
+                soft_predictions.append(np.array(soft_prediction))
+                prediction = ((soft_prediction)>0.5).astype(np.uint8)
+                # assert np.array_equal(softpredthresh.cpu().numpy(), prediction)
+                predictions.append(np.array(prediction))
 
-            print(f"Model {model_name}, image {i}")
+        if FILTER_METHOD == 'soft':
+            filtered_predictions =soft_voting(predictions, WINDOW_SIZE)
+        elif FILTER_METHOD == 'hard':
+            filtered_predictions = majority_voting(predictions, WINDOW_SIZE)
+        else:
+            raise NotImplementedError("Invalid filter method")
 
-            # Plot the images
-            sample = detransform(sample)
-            # axs[i,0].imshow(anchor_detrans); axs[i,0].axis("off") 
-            # axs[i,1].imshow(sample); axs[i,1].axis("off")
+        visualized_frames = make_visualizations(filtered_predictions, predictions, samples, anchors, SHOW_FINAL)
+        imgs_to_video(visualized_frames, SAVE_PATH, VIDEO_NAME, FPS, IMG_DIMS)
 
-            prediction = v2.ToPILImage()(torch.squeeze(prediction,0))
-            blend = Image.blend(anchor_detrans.convert("RGBA"), prediction.convert("RGBA"), 0.8)
-            # axs[i,model_idx+2].imshow(blend);  axs[i,model_idx+2].axis('off')
-            
-            # for making video
-            npimg1 = np.array(blend.convert('RGB'))
-            npimg2 = np.array(sample.convert('RGB'))
-            npimg = np.hstack((npimg1,npimg2))
-            npimg = cv2.cvtColor(npimg, cv2.COLOR_RGB2BGR)
-            predictions.append(npimg)
-
-imgs_to_video(predictions, SAVE_PATH, VIDEO_NAME, FPS)
-
-# axs[0,model_idx+2].set_title(model_name)
-# axs[0,0].set_title('Reference')
-# axs[0,1].set_title('Sample')
-
-# plt.tight_layout()
-# plt.savefig("/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/video.png")
-
-
-# def create_result_video(rec_dir: Path, config: dict, pred: list, vid_load_path: Path, title="result",save_path  = None):
-#     print("-"*69)
-#     print(f"Creating video for {rec_dir.name}")
-#     print("-" * 69)
-#     name = rec_dir.name
-#     # We read the fraems from rec_dir
-#     frames = list((rec_dir / 'rgb').glob("*.jpg"))
-#     frames.sort()
-#     n_frames = len(frames)
-
-#     # load ASD predictions
-#     asd_predictions = load_asd_predictions(
-#         config["ads_dir"], rec_dir, n_frames)
-
-#     res_path = Path(save_path)
-#     vid_path = res_path / f"{config['implementation']}" / f"{name}_{title}.mp4"
-#     vid_path.parent.mkdir(parents=True, exist_ok=True)
-#     save_video = cv2.VideoWriter(str(vid_path), fourcc, FPS, (width, height))
-#     load_video = cv2.VideoCapture(str(vid_load_path))
-# %%

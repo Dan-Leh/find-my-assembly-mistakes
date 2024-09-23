@@ -15,8 +15,8 @@ python train.py \
 --resume_results_dir /shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/$MODEL \
 --T_0 300 \
 --save_ckpt_interval 20 \
---img_transforms/roi_margin 50 \
 --cyws/attention $MODEL \
+--img_transforms/roi_margin 50
 
 python test.py \
 --config '/shared/nl011006/res_ds_ml_restricted/dlehman/state-diff-net/results/'$NAME'/config.yaml' \
