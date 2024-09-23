@@ -8,6 +8,8 @@ import torch
 from typing import Union, Optional
 
 from utils.transforms import Transforms
+from utils.fda import FourierDomainAdaptation
+from utils.background_randomizer import replace_background
 
 class SyntheticChangeDataset(Dataset):
     """ Dataset for pairing two synthetic images & generating ground truth change mask """
@@ -16,21 +18,27 @@ class SyntheticChangeDataset(Dataset):
         self,
         data_path: str,
         img_transforms: dict,
+        fda_config: dict = {},
         orientation_thresholds: tuple = (0, 0.1),   
         parts_diff_thresholds: tuple = (1, 6),
-        preprocess: bool = False              
+        preprocess: bool = False,
+        split: str = "train"
         ):
         '''
         Arguments:
             data_path (string): path to the folder containing the dataset
             img_transforms (dict): a dictionary containing all the image 
-                    transforms from the config file
+                                   transforms from the config file
+            fda_config (dict): configuration parameters for fourier domain adaptation, 
+                               including fraction of images that should receive fda
             orientation_thresholds (tuple): the minimum & maximum nQD (norm of quaternion 
                                             differences) between two images in a pair
             parts_diff_thresholds (tuple): the minimum & maximum number of different
                                            parts between two images in a pair
             preprocess (bool): if True, run preprocessing functions, i.e. save list 
                                 of all states and orientation differences in dataset
+            split (str): train, test or val. Only used for randomizing background images
+                        as there is a separate list preallocated to each split.
         '''
         # make input variables class-wide
         self.orientation_thresholds = orientation_thresholds
@@ -43,6 +51,24 @@ class SyntheticChangeDataset(Dataset):
         self.data_list, self.n_sequences, self.n_frames = self._make_data_list()
         self.state_dict, self.state_list = self._state_table(preprocess)
         self.nqd_table = self._orientations_table(preprocess) 
+        
+        if img_transforms['frac_random_background'] > 0:  # initialize vars for randomizing bg
+            self.randomize_background = True
+            self.frac_rand_background = img_transforms['frac_random_background']
+            self.bg_img_folder = f"/shared/nl011006/res_ds_ml_restricted/dlehman/COCO_Images"
+            self.bg_img_root = os.path.join(self.bg_img_folder, "unlabeled2017")
+            img_list_path = os.path.join(self.bg_img_folder, f"{split}_img_list.json")
+            with open(img_list_path, 'r') as f:
+                self.bg_img_list = json.load(f)
+            f.close()
+        else: 
+            self.randomize_background = False
+            
+        # initialize fda:
+        if split == 'train' and fda_config['frac_imgs_w_fda'] > 0:            
+            self.fda = FourierDomainAdaptation(fda_config, self.img_transforms['img_size'])
+        else: 
+            self.fda = None
     
     def _get_instance_info(self, sequence:int, frame:int) -> list:
         ''' Load instance segmentation label definitions from frame_data file. '''
@@ -279,6 +305,40 @@ class SyntheticChangeDataset(Dataset):
             
         return segmentations[0], segmentations[1]
     
+    def _randomize_image_background(self, img:torch.Tensor, img_name:str,
+                sequence:int, frame_id:int, transforms:Transforms) -> torch.Tensor:
+        ''' Return assembly object pasted on random background.
+    
+        Arguments:
+            img (tensor): transformed anchor or sample image
+            img_name (str): 'anchor' or 'sample'
+            sequence (list): sequence number of anchor or sample image
+            frame_id (list): frame number of anchor or sample image
+            transforms (Transform class): the transform applied to image pairs
+                prior to becoming eg. ROI crops, used to transform the 
+                segmentation masks so they are aligned with the images to cut 
+                out the assembly object
+                            
+        Returns:
+            img_w_background (tensor): image with randomized background
+        '''       
+        # load background image
+        bg_img_filenames = random.choice(self.bg_img_list)
+        bg_img_path = os.path.join(self.bg_img_root, bg_img_filenames)
+        bg_img = Image.open(bg_img_path)
+        
+        # load binary segmentation mask
+        label_filepath = os.path.join(self.path_to_data, f"sequence{str(sequence).zfill(4)}",
+                            fr"step{str(frame_id).zfill(4)}.camera.instance segmentation.png") 
+        segmask = Image.open(label_filepath).convert('L') # make the image grayscale
+        segmask = np.array(segmask)
+        segmask = Image.fromarray((segmask > 0).astype(np.uint8)*255)
+        
+        # cut out assembly object and add to new background
+        img_w_background = replace_background(img, segmask, bg_img, transforms, 
+                                    self.img_transforms['img_size'], img_name)
+        return img_w_background
+
     def _load_binary_change_mask(self, sequence: int, frame_1: int, frame_2: int, 
                                  state_1: int, state_2: int) -> Image.Image:
         ''' Load the binary change mask of an image pair from the dataset.
@@ -446,7 +506,7 @@ class SyntheticChangeDataset(Dataset):
         # instantiate transforms so that the same transforms are applied to all images
         seg_mask_img_1, seg_mask_img_2 = self._load_segmentation_masks(sequence_a, 
                                                             sequence_b, frame_1, frame_a2) 
-        tf = Transforms(seg_mask_img_1, seg_mask_img_2, self.img_transforms)
+        tf = Transforms(seg_mask_img_1, seg_mask_img_2, self.img_transforms, self.fda)
         
         # apply transforms
         image_a1 = tf(image_a1, 'anchor')

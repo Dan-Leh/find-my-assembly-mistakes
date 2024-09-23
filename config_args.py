@@ -3,6 +3,7 @@ import argparse
 
 
 def get_overwrite_arguments(parser, train:bool): 
+    ''' Function which stores all the available config arguments and their function. '''
 
     parser.add_argument('--experiment_name', type=str, help="Name used for creating checkpoint and 'results' directory")
 

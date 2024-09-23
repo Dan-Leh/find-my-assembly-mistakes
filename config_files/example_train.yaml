@@ -1,0 +1,97 @@
+# file paths 
+train_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Train_states_v2
+val_dir: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData/Val_states_v2
+checkpoint_root: /hpc/scratch/dlehman/CD_checkpoints
+output_root: /shared/nl011006/res_ds_ml_restricted/dlehman/find-my-assembly-mistakes/results
+experiment_name: example_train
+
+
+# change detection dataset hyperparameters
+orientation_thresholds:
+- 0.0
+- 0.1
+parts_diff_thresholds:
+- 1
+- 6
+
+# learning parameters
+loss: ce
+lr: 1.0e-05
+max_epochs: 415
+batch_size: 64
+
+lr_policy: cosine
+T_0: 100
+T_mult: 3
+warmup_epochs: 15
+optimizer: adam
+init_type: kaiming
+
+# hardware
+gpu: true
+num_workers: 8
+
+# if resuming training
+resume_ckpt_path: ''
+resume_results_dir: ''
+
+# logging 
+log_iter: 50
+save_ckpt: true
+save_fig_iter: 200
+save_ckpt_interval: 1000
+
+cyws: # model architecture parameters
+  attention: gca
+  coam_layer_data:
+  - 3
+  - - 512
+    - 256
+    - 128
+  - - 128
+    - 64
+    - 32
+  decoder_attn_type: scse
+  encoder: resnet34
+  kernel_sizes:
+  - 5
+  - 7
+  - 11
+  n_MSA_layers: 1
+  n_SA_heads: 8
+  pretrained_encoder: true
+  self_attention: linear
+
+# image transformations
+img_transforms:
+  img_size:
+  - 256
+  - 256
+  normalization: imagenet
+  # geometric transforms
+  ROI_crops: true
+  center_roi: false
+  roi_margin: 10
+  max_translation: 0
+  random_crop: false
+  rescale: 1
+  rotation: true
+  shear: 12
+  vflip_probability: 0.2
+  hflip_probability: 0.5
+  # photometric transforms
+  g_kernel_size: 5 # gaussian blur
+  g_sigma_h: 1
+  g_sigma_l: 0.01
+  brightness: 0.5
+  contrast: 0.5
+  saturation: 0.6
+  hue: 0.1
+  gradually_augment: true
+  frac_random_background: 0.3
+
+# fourier domain adaptation
+fda:
+  beta_max: 0.005
+  beta_min: 0.005
+  frac_imgs_w_fda: 0.5

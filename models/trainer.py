@@ -33,13 +33,16 @@ class CDTrainer():
                 data_path=args.train_dir,
                 orientation_thresholds=args.orientation_thresholds, 
                 parts_diff_thresholds=args.parts_diff_thresholds, 
-                img_transforms=args.img_transforms
+                img_transforms=args.img_transforms,
+                fda_config=args.fda,
+                split='train',
                 ),
             'val': SyntheticChangeDataset(
                 data_path=args.val_dir,
                 orientation_thresholds=args.orientation_thresholds,
                 parts_diff_thresholds=args.parts_diff_thresholds, 
-                img_transforms=remove_train_augmentations(args.img_transforms)
+                img_transforms=remove_train_augmentations(args.img_transforms),
+                split='val'
                 )
         }
 
@@ -279,7 +282,7 @@ class CDTrainer():
         #   
         if np.mod(self.epoch_id, self.save_ckpt_interval) == 0: 
             ckpt_name = f"ckpt_epoch_{self.epoch_id}.pt"
-            self._save_checkpoint(ckpt_name='best_ckpt.pt')
+            self._save_checkpoint(ckpt_name=ckpt_name)
             self.logger.write('Model checkpoint saved every '
                               f'{self.save_ckpt_interval} epochs!\n\n')
             

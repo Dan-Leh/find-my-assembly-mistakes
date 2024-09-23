@@ -16,8 +16,7 @@ def read_config(train:bool = True) -> types.SimpleNamespace:
         train (bool): if true, config is used for training, else for testing
     '''
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default=
-                        '/shared/nl011006/res_ds_ml_restricted/dlehman/find-my-assembly-mistakes/config_files/train_phase_1.yaml')
+    parser.add_argument('--config', type=str)
         
     # gather all the values that were given through command line   
     overwrite_parser = get_overwrite_arguments(parser, train)
