@@ -1,3 +1,6 @@
+''' This file was taken from 'LoFTR: Detector-Free Local Feature Matching with Transformers':
+https://github.com/zju3dv/LoFTR.git '''
+
 import math
 import torch
 from torch import nn

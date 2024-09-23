@@ -65,13 +65,10 @@ class EvalTransforms():
     def __call__(self, img:torch.Tensor, img_name:str, real_img:bool=False):
         ''' Apply transforms to anchor, sample and change mask. '''
         
-        if img_name == 'label' or img_name == 'segmask_sample':
+        if img_name == 'label':
             img = self.label2tensor(img)/255
             if self.make_roi_crop:
-                if img_name == 'segmask_sample':  # used by background replacer
-                    p = self.crop_params['sample']
-                else:
-                    p = self.crop_params['anchor']
+                p = self.crop_params['anchor']
                 img = v2.functional.crop(img, p[0],p[1],p[2],p[3])
             else:
                 img = self.centercrop(img)

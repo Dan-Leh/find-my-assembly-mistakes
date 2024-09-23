@@ -1,3 +1,6 @@
+''' The code in this file has been built off the same-named file published in
+"Remote Sensing Image Change Detection with Transformers": https://github.com/justchenhao/BIT_CD.git '''
+
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -30,16 +33,13 @@ class CDTrainer():
                 data_path=args.train_dir,
                 orientation_thresholds=args.orientation_thresholds, 
                 parts_diff_thresholds=args.parts_diff_thresholds, 
-                img_transforms=args.img_transforms,
-                fda_config=args.fda,
-                split='train',
+                img_transforms=args.img_transforms
                 ),
             'val': SyntheticChangeDataset(
                 data_path=args.val_dir,
                 orientation_thresholds=args.orientation_thresholds,
                 parts_diff_thresholds=args.parts_diff_thresholds, 
-                img_transforms=remove_train_augmentations(args.img_transforms),
-                split='val'
+                img_transforms=remove_train_augmentations(args.img_transforms)
                 )
         }
 

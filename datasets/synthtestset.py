@@ -6,7 +6,6 @@ from torch.utils.data import Dataset
 import torch
 
 from utils.eval_transforms import EvalTransforms
-from utils.background_randomizer import replace_background
 
 class EvalDataset(Dataset):
     ''' Provides synthetic image pairs & ground truth for testing. '''
@@ -18,8 +17,6 @@ class EvalDataset(Dataset):
         img_size: tuple = (256,256), 
         test_type: str = "",
         ignore_0_change: bool = True,
-        dirty_img: str = "",
-        more_nqd_bins: bool=False
         ):
         '''
         Arguments:
@@ -31,22 +28,13 @@ class EvalDataset(Dataset):
                 translation, scaling or roi cropping. 
             ignore_0_change (bool): skip testing on image pairs that have no 
                 meaningful change as those have 0 IoU (saves time & compute)
-            dirty_img (str): which image should be dirty, either 'anchor', 'sample'
-                (in which case the other one is kept clean) or 'both'. Empty string
-                means we are not testing on dirty images
-            more_nqd_bins (bool): if true, plot the results using the 11 nQD ranges
-                from 0 to 1 nQD in incremenets of 0.1, else use the previous 4 bins: 
-                0, 0-0.1, 0.1-0.2 and 0.2-1
         '''
         self.norm_type = norm_type
         self.img_size = img_size
         self.test_type = test_type
-        self.more_nqd_bins = more_nqd_bins
-        self.dirty_img = dirty_img
         self.path_to_data, filename = os.path.split(data_list_filepath)
         self.determinstic_set = self._load_json(filename)  # paths to image pairs
-        self.make_roi_crops = True if data_list_filepath.endswith('w_crops.json') \
-                         else False
+
         if ignore_0_change:
             if type(self.determinstic_set[0]["n_differences"])==int:
                 no_change = 0
@@ -65,14 +53,12 @@ class EvalDataset(Dataset):
                 
 
         
-        # decode where to load data from
-        if (test_type in ["orientation", "roi_aligned"] or self.make_roi_crops):
-            self.id2indexdict = self._id2index() 
-            # list containing the state of each image in set
-            self.state_list = self._load_json('state_list.json') 
-            # get the number of frames per sequence (used for indexing in state_list)
-            seq_dir = os.path.join(self.path_to_data,"sequence0000")
-            self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
+        self.id2indexdict = self._id2index() 
+        # list containing the state of each image in set
+        self.state_list = self._load_json('state_list.json') 
+        # get the number of frames per sequence (used for indexing in state_list)
+        seq_dir = os.path.join(self.path_to_data,"sequence0000")
+        self.n_frames = len(os.listdir(seq_dir))//3  # 3 files per frame
             
     def _load_json(self, name: str) -> list:
         ''' load json file with specified name from data directory '''
@@ -205,66 +191,14 @@ class EvalDataset(Dataset):
         change_mask = Image.fromarray(change_mask, mode='L')  # grayscale
         
         return change_mask
-    
-    def _randomize_image_background(self, anchor:torch.Tensor, 
-                        sample:torch.Tensor, img_pair_info:dict, sequences:list[int,int], 
-                        frame_ids:list[int,int], transforms:EvalTransforms
-                        )-> list[torch.Tensor, torch.Tensor]:
-        ''' Add natural image background from COCO to assembly object images
-    
-        Arguments:
-            anchor (tensor): transformed anchor image
-            sample (tensor): transformed sample image
-            img_pair_info (dict): contains path to background image linked
-                to each paired sample and anchor image.
-            sequences (list): sequence number of anchor and sample images
-            frame_ids (list): background images to use
-            transforms (Transform class): the transform applied to image pairs
-                prior to becoming eg. ROI crops, used to transform the 
-                segmentation masks so they are aligned with the images to cut 
-                out the assembly object
-                            
-        Returns:
-            anchor (tensor): anchor image with randomized background
-            sample (tensor): sample image with randomized background
-        '''
         
-        def get_segmentation_mask(sequence, frame):
-            ''' Return binary segmentation of assemnbly object '''
-            
-            label_filepath = os.path.join(self.path_to_data, 
-                    f"sequence{str(sequence).zfill(4)}", 
-                    fr"step{str(frame).zfill(4)}.camera.instance segmentation.png")
-            segmask = Image.open(label_filepath).convert('L')  # grayscale
-            segmask = np.array(segmask)
-            segmask = Image.fromarray((segmask > 0).astype(np.uint8)*255)
-            
-            return segmask
-            
-        # replace background where specified
-        if self.dirty_img == 'anchor' or self.dirty_img == 'both':
-            bg_img = Image.open(img_pair_info["A1_bg_img"])
-            segmask = get_segmentation_mask(sequences[0], frame_ids[0])
-            anchor = replace_background(anchor, segmask, bg_img, 
-                                        transforms, self.img_size, "anchor")
-        if self.dirty_img == 'sample' or self.dirty_img == 'both':
-            bg_img = Image.open(img_pair_info["B2_bg_img"])
-            segmask = get_segmentation_mask(sequences[1], frame_ids[1])
-            sample = replace_background(sample, segmask, bg_img, 
-                                        transforms, self.img_size, "sample")
-        
-        return anchor, sample
-    
     def _get_max_orientation_diff(self, nQD:float) -> float:
         ''' From the exact norm of quaternion difference value, extract the upper
         limit of the bin to which this orientation belongs. '''
         
-        if self.more_nqd_bins:
-            nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2,0.3),
-                              4:(0.3,0.4), 5:(0.4,0.5), 6:(0.5,0.6), 7:(0.6,0.7), 
-                              8:(0.7,0.8), 9:(0.8,0.9), 10:(0.9,1)}
-        else:
-            nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2, 1)}
+        nqd_thresholds = {0:(0,0), 1:(0.005,0.1), 2:(0.1,0.2), 3:(0.2,0.3),
+                            4:(0.3,0.4), 5:(0.4,0.5), 6:(0.5,0.6), 7:(0.6,0.7), 
+                            8:(0.7,0.8), 9:(0.8,0.9), 10:(0.9,1)}
             
         for thresholds in nqd_thresholds.values():
             if nQD >= thresholds[0] and nQD <= thresholds[1]:
@@ -273,10 +207,8 @@ class EvalDataset(Dataset):
     def __getitem__(self, idx:int):
         ''' Determinstically go through dataset & return pairs with label. 
         
-        If self.test_type is eg. translation, scaling, or roi cropping, random 
-        augmentations have been applied and image pairs have been saved with them. 
-        Else,  data_list_filepath contains the paths to deterministic iamge pairs
-        that are loaded from dataset iwithout applying any randomization.
+        The crop parameters are rendered deterministic by being saved in the 
+        json file in which all the image pairs are defined.
         
         Returns:
             anchor (pil Image):
@@ -290,89 +222,30 @@ class EvalDataset(Dataset):
         # get image pair coordinates
         img_pair = self.determinstic_set[idx]
         
-        # if orientation difference is the changing variable
-        if (self.test_type == "orientation" or 
-                self.test_type == "roi_aligned" or 
-                self.make_roi_crops):
-            anchor_seq, anchor_frame = img_pair["A1"]
-            sample_seq, sample_frame = img_pair["B2"]
-            max_parts_diff = img_pair["n_differences"][1]
+        anchor_seq, anchor_frame = img_pair["A1"]
+        sample_seq, sample_frame = img_pair["B2"]
+        max_parts_diff = img_pair["n_differences"][1]
+    
+        # get states of both images
+        anchor_state = self.state_list[anchor_seq*self.n_frames+anchor_frame]
+        sample_state = self.state_list[sample_seq*self.n_frames+sample_frame]
         
-            # get states of both images
-            anchor_state = self.state_list[anchor_seq*self.n_frames+anchor_frame]
-            sample_state = self.state_list[sample_seq*self.n_frames+sample_frame]
-            
-            # load images and change mask
-            anchor = self._load_image(anchor_seq, anchor_frame)
-            sample = self._load_image(sample_seq, sample_frame)
-            change_mask = self._load_binary_change_mask(anchor_seq, anchor_frame, 
-                                            sample_frame, anchor_state, sample_state)
-                        
-            if self.test_type == "orientation":
-                variable_of_interest = self._get_max_orientation_diff(
-                                                    img_pair["quaternion_difference"])
-                variable_of_interest = img_pair["quaternion_difference"]
-                tf = EvalTransforms(self.test_type, anchor.size, self.img_size, 
-                                    self.norm_type, None, None)
-            elif self.test_type == "roi_aligned":
-                variable_of_interest = self._get_max_orientation_diff(
-                                                    img_pair["quaternion_difference"])
-                # load segmentation masks to make roi crops
-                SegMaskImage1, SegMaskImage2 = self._load_segmentation_masks(anchor_seq, 
-                                                sample_seq, anchor_frame, sample_frame) 
-                tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
-                        self.norm_type, SegMaskImage1, SegMaskImage2)
-            elif self.make_roi_crops:
-                variable_of_interest = self._get_max_orientation_diff(
-                                        img_pair["quaternion_difference"])
-                crop_params = {"anchor": img_pair["A1_crop"],
-                               "sample": img_pair["B2_crop"]}
-                tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
-                        self.norm_type, None, None, crop_params)
-            else:
-                raise ValueError(f'Invalid test type: {self.test_type}')
-        
-            # apply transforms
-            anchor = tf(anchor, 'anchor')
-            sample = tf(sample, 'sample')
-            change_mask = tf(change_mask, 'label')
-            
-            if self.test_type == "background":
-                anchor, sample = self._randomize_image_background(anchor, sample, 
-                    img_pair, [anchor_seq, sample_seq], [anchor_frame, sample_frame], tf)
-        
-        else: # get saved image pairs with fixed translation or scale or ROI crop
-            assert self.img_size[0] == self.img_size[1] == 256, \
-                "The saved image pairs are of size (256,256)"
-            
-            img_names = img_pair['img_name']
-            variable_of_interest = img_pair['variable_of_interest']
-            max_parts_diff = img_pair["n_differences"][1] \
-                if type(img_pair["n_differences"])!=int else img_pair["n_differences"] 
-
-            # get path to images
-            path_anchor = os.path.join(self.path_to_anchors, img_names)
-            path_sample = os.path.join(self.path_to_samples, img_names)
-            path_mask = os.path.join(self.path_to_masks, img_names)
-
-            # load images
-            anchor = Image.open(path_anchor).convert("RGB")
-            sample = Image.open(path_sample).convert("RGB")
-            change_mask = Image.open(path_mask).convert("L")
-            
-            # get & apply transforms
-            tf = EvalTransforms('', anchor.size, self.img_size, self.norm_type, None, None)
-            anchor = tf(anchor, 'anchor')
-            sample = tf(sample, 'sample')
-            change_mask = tf(change_mask, 'label')
-
-        # sanity checks
-        assert (anchor.shape == sample.shape), "Anchor and sample images do not have "\
-                                                    "the same dimensions"
-        assert (change_mask.shape[-2:] == anchor.shape[-2:]), "Change mask and anchor "\
-                                                "image do not have the same dimensions"
-        assert torch.count_nonzero(change_mask) + torch.count_nonzero(1-change_mask) == \
-                            self.img_size[0]*self.img_size[1], \
-                            "There are values in the change_mask that are neither 0 nor 1"
+        # load images and change mask
+        anchor = self._load_image(anchor_seq, anchor_frame)
+        sample = self._load_image(sample_seq, sample_frame)
+        change_mask = self._load_binary_change_mask(anchor_seq, anchor_frame, 
+                                        sample_frame, anchor_state, sample_state)
+                    
+        variable_of_interest = self._get_max_orientation_diff(
+                                img_pair["quaternion_difference"])
+        crop_params = {"anchor": img_pair["A1_crop"],
+                        "sample": img_pair["B2_crop"]}
+        tf = EvalTransforms(self.test_type, (0,0), self.img_size, 
+                self.norm_type, None, None, crop_params)
+    
+        # apply transforms
+        anchor = tf(anchor, 'anchor')
+        sample = tf(sample, 'sample')
+        change_mask = tf(change_mask, 'label')
         
         return anchor, sample, change_mask, variable_of_interest, max_parts_diff 

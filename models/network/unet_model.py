@@ -1,3 +1,6 @@
+''' This file was obtained from 
+https://github.com/qubvel/segmentation_models.pytorch/blob/master/segmentation_models_pytorch/decoders/unet/model.py'''
+
 from typing import List, Optional, Union
 
 import torch
@@ -7,8 +10,6 @@ from models.network.base import ClassificationHead, SegmentationHead, Segmentati
 from .base import modules as md
 from .encoders import get_encoder
 
-
-# The following is modified from https://github.com/qubvel/segmentation_models.pytorch/blob/master/segmentation_models_pytorch/decoders/unet/model.py
 
 class Unet(SegmentationModel):
     """Unet_ is a fully convolution neural network for image semantic segmentation. Consist of *encoder*

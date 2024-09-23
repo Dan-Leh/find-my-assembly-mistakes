@@ -1,3 +1,7 @@
+''' The code in this file has been built off the same-named file published in
+"Remote Sensing Image Change Detection with Transformers": https://github.com/justchenhao/BIT_CD.git '''
+
+
 import os
 import math
 import numpy as np

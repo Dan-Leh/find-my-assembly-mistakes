@@ -1,3 +1,6 @@
+''' This file was taken from 'LoFTR: Detector-Free Local Feature Matching with Transformers':
+https://github.com/zju3dv/LoFTR.git '''
+
 import torch
 import torch.nn as nn
 from einops import rearrange

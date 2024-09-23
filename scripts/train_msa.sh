@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #PBS -S /bin/bash
 #PBS -l select=1:ncpus=8:ngpus=1:gpu_type=v100:mem=32gb:dcloc=htc
 #PBS -N msa_final
@@ -26,3 +27,10 @@ python test_dirty_imgs.py \
 --test_sets 'rand_background' \
 --log_iter 500 \
 --save_fig_iter 20 
+=======
+#!/bin/bash
+NAME=msa
+python train.py \
+--experiment_name 'msa_phase_1' \
+--cyws/attention msa
+>>>>>>> find-my-assembly-mistakes/main

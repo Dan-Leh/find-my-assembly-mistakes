@@ -144,12 +144,10 @@ class TestScorePlotter():
     
         v_min = {'iou_1': 0.2, 'f1_1': 0.4}
         v_max = {'iou_1': 1, 'f1_1': 1}
-        swap_classes = {'iou_1': 'iou_0', 'f1_1': 'f1_0'}
         for metric_of_interest in ['f1_1', 'iou_1']:
             all_score = df[metric_of_interest].to_numpy()
             all_voi = df[self.var_of_interest].to_numpy() # voi = variable of interest
             all_parts_diffs = df['parts_diff'].to_numpy()
-            all_score_swapped_classes = df[swap_classes[metric_of_interest]].to_numpy()
             
             voi_bins = np.sort(df[self.var_of_interest].unique())
             parts_diffs_bins = np.sort(df.parts_diff.unique())
@@ -157,14 +155,9 @@ class TestScorePlotter():
             scores = np.zeros((len(voi_bins), len(parts_diffs_bins)))
             for i,voi in enumerate(voi_bins):
                 for j,parts_diff in enumerate(parts_diffs_bins):
-                    if parts_diff>0:
-                        score_bin = all_score[(all_voi==voi) & 
-                                              (all_parts_diffs==parts_diff)]
-                        scores[i,j] = np.mean(score_bin)  
-                    elif parts_diff==0:
-                        score_bin = all_score_swapped_classes[(all_voi==voi) & 
-                                                    (all_parts_diffs==parts_diff)]
-                        scores[i,j] = (np.mean(score_bin)-0.99) * 100
+                    score_bin = all_score[(all_voi==voi) & 
+                                            (all_parts_diffs==parts_diff)]
+                    scores[i,j] = np.mean(score_bin)  
             
             # plotting the heatmap 
             plt.figure()
