@@ -52,7 +52,7 @@ Using the our training set as an example, it contains 200 poses of the assembly 
 
 
 ### Acknowledgments
-Much of the code in this repository was taken from the following sources:
+Much of the code in this repositor and some of the ideas in our paper were taken from and inspired by the following sources. We thank the authors for making their work open-source.
 - [The Change You Want to See](https://github.com/ragavsachdeva/The-Change-You-Want-to-See)
 - [Remote Sensing Image Change Detection with Transformers](https://github.com/justchenhao/BIT_CD)
 - [LoFTR: Detector-Free Local Feature Matching with Transformers](https://github.com/zju3dv/LoFTR/tree/master)
