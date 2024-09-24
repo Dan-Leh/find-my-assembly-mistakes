@@ -118,26 +118,6 @@ class LocalAttentionLayer(nn.Module):
                     attn_maps.append(attn_map.cpu().detach().numpy())
                 else:
                     attended_features[:,:,h,w] = self.cross_attention(q, k, v)
-                
-        ############### save attention map for visualizing query later #################
-        # if vis_CA: # save cross-attention weights for visualization in image pairs
-        #     import pickle
-        #     import os
-        #     save_root = "/shared/nl011006/res_ds_ml_restricted/dlehman/assembly-error-localization/visualize_cross-attention/cross-attention_maps"
-        #     spatial_resolutions = {0: "8x8", 1: "16x16", 2: "32x32"}
-            
-        #     for i in range(3): # to figure out which spatial resolution we're currently at
-        #         file_name = f"sample{self.n_times_called}_spatial_res_{spatial_resolutions[i]}"
-        #         save_path = os.path.join(save_root, file_name)
-        #         if not os.path.exists(save_path):
-        #             break
-        #     with open(save_path, "wb") as fp:
-        #         pickle.dump(attn_maps, fp)
-            
-        #     self.n_times_called += 1
-        #     print(f"SAVING LOCAL ATTENTION MAPS with legnth {len(attn_maps)}")
-        
-        ################################################################################
         
         return attended_features
     
