@@ -52,6 +52,7 @@ your-data-root-directory
 │   train_img_list.json
 │   val_img_list.json
 │   test_img_list.json
+└───resnet_pretraiend_weights (optional)
 ```
 
 Using the our training set as an example, it contains 200 poses of the assembly object in 5000 states. In the file structure, this corresponds to 200 folders, each containing 5000 images, segmentation masks, and json files containing the annotation data. The naming is as follows, with each sequence number corresponding to one pose, and each step corresponding to a unique state:
