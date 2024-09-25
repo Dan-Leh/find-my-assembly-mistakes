@@ -35,6 +35,7 @@ sh scripts/test_real_imgs.sh
 ```
 
 ### Data structure
+Link to data coming soon!
 We recommend to organize all of the training/test sets in the same directory, (whose path can be specified as one argument in the config file) as follows:
 ```
 your-data-root-directory
