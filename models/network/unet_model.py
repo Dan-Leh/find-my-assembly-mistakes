@@ -44,6 +44,8 @@ class Unet(SegmentationModel):
                 - pooling (str): One of "max", "avg". Default is "avg"
                 - dropout (float): Dropout factor in [0, 1)
                 - activation (str): An activation function to apply "sigmoid"/"softmax" (could be **None** to return logits)
+        ...
+        data_path: path to the directory containing the resnet_pretrained_weights directory, for loading pretrained weights
 
     Returns:
         ``torch.nn.Module``: Unet
@@ -68,11 +70,13 @@ class Unet(SegmentationModel):
         num_coam_layers: Optional[int] = 0,
         return_decoder_features=False,
         disable_segmentation_head=False,
+        data_path=""
     ):
         super().__init__()
 
         self.encoder = get_encoder(
             encoder_name,
+            data_path=data_path,
             in_channels=in_channels,
             depth=encoder_depth,
             weights=encoder_weights,

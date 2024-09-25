@@ -63,7 +63,7 @@ def build_model(args, train=True):
     ''' Return model with initialized and/or pretrained weights. '''
     
     # instantiate model
-    model = CYWS(cyws_params = args.cyws, classes = 2)
+    model = CYWS(cyws_params = args.cyws, data_path = args.data_root)
     device = torch.device("cuda" if torch.cuda.is_available() 
                                    and args.gpu else "cpu")
     model.to(device)

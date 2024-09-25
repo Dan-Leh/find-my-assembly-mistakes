@@ -9,7 +9,7 @@ from models.network.crossattention import CrossAttentionModule
 from models.network.loftr_files.multi_headed_attn import MSA
 
 class CYWS(nn.Module):
-    def __init__(self, cyws_params, classes):
+    def __init__(self, cyws_params, data_path):
         super().__init__()
         n_coam, coam_input_channels, coam_hidden_channels = \
                                                 cyws_params['coam_layer_data']
@@ -26,7 +26,8 @@ class CYWS(nn.Module):
                     num_coam_layers=n_coam,
                     decoder_attention_type=cyws_params['decoder_attn_type'],
                     disable_segmentation_head=False,
-                    classes = classes
+                    classes = 2,
+                    data_path = data_path
                 )
         
         if cyws_params['attention'] == 'msa':
