@@ -1,12 +1,12 @@
 # file paths
 experiment_name: example_train
 
-data_root: /shared/nl011006/res_ds_ml_restricted/dlehman/SyntheticData
+data_root: path/to/synthetic_data_dir
 train_dir_name: Train_set
 val_dir_name: Main_test_set
 checkpoint_root: /hpc/scratch/dlehman/CD_checkpoints
-output_root: /shared/nl011006/res_ds_ml_restricted/dlehman/find-my-assembly-mistakes/results
-bg_img_root: /shared/nl011006/res_ds_ml_restricted/dlehman/COCO_Images
+output_root: path/to/find-my-assembly-mistakes/results
+bg_img_root: path/to/COCO_Images
 
 
 # change detection dataset hyperparameters
